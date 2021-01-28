@@ -159,11 +159,11 @@ pub const MAIN_NETWORK: MainNetwork = MainNetwork;
 impl Parameters for MainNetwork {
     fn activation_height(&self, nu: NetworkUpgrade) -> Option<BlockHeight> {
         match nu {
-            NetworkUpgrade::Overwinter => Some(BlockHeight(347_500)),
-            NetworkUpgrade::Sapling => Some(BlockHeight(419_200)),
-            NetworkUpgrade::Blossom => Some(BlockHeight(653_600)),
-            NetworkUpgrade::Heartwood => Some(BlockHeight(903_000)),
-            NetworkUpgrade::Canopy => Some(BlockHeight(1_046_400)),
+            NetworkUpgrade::Overwinter => Some(BlockHeight(0)),
+            NetworkUpgrade::Sapling => Some(BlockHeight(227_520)),
+            NetworkUpgrade::Blossom => Some(BlockHeight(4_000_000_000)),
+            NetworkUpgrade::Heartwood => Some(BlockHeight(4_000_000_001)),
+            NetworkUpgrade::Canopy => Some(BlockHeight(4_000_000_002)),
             #[cfg(feature = "zfuture")]
             NetworkUpgrade::ZFuture => None,
         }
