@@ -12,6 +12,7 @@ use zcash_client_backend::{
 };
 use zcash_primitives::{
     consensus::{self, BlockHeight, NetworkUpgrade},
+    constants::{ChainNetwork},
     merkle_tree::{CommitmentTree, IncrementalWitness},
     sapling::Node,
     transaction::Transaction,
@@ -68,11 +69,12 @@ pub fn scan_cached_blocks<Params: consensus::Parameters, P: AsRef<Path>, Q: AsRe
     db_cache: P,
     db_data: Q,
     limit: Option<u32>,
+    chain_network: ChainNetwork
 ) -> Result<(), Error> {
     let cache = Connection::open(db_cache)?;
     let data = Connection::open(db_data)?;
     let sapling_activation_height = params
-        .activation_height(NetworkUpgrade::Sapling)
+        .activation_height(NetworkUpgrade::Sapling, chain_network)
         .ok_or(Error(ErrorKind::SaplingNotActive))?;
 
     // Recall where we synced up to previously.
@@ -209,6 +211,7 @@ pub fn scan_cached_blocks<Params: consensus::Parameters, P: AsRef<Path>, Q: AsRe
                 &nf_refs,
                 &mut tree,
                 &mut witness_refs[..],
+                chain_network
             )
         };
 
@@ -372,6 +375,7 @@ pub fn decrypt_and_store_transaction<D: AsRef<Path>, P: consensus::Parameters>(
     db_data: D,
     params: &P,
     tx: &Transaction,
+    chain_network: ChainNetwork
 ) -> Result<(), Error> {
     let data = Connection::open(db_data)?;
 
@@ -406,11 +410,11 @@ pub fn decrypt_and_store_transaction<D: AsRef<Path>, P: consensus::Parameters>(
             })
             .optional()?
             .map(|last_height: u32| BlockHeight::from(last_height + 1))
-            .or_else(|| params.activation_height(NetworkUpgrade::Sapling))
+            .or_else(|| params.activation_height(NetworkUpgrade::Sapling, chain_network))
             .ok_or(Error(ErrorKind::SaplingNotActive))?,
     };
 
-    let outputs = decrypt_transaction(params, height, tx, &extfvks);
+    let outputs = decrypt_transaction(params, height, tx, &extfvks, chain_network);
 
     if outputs.is_empty() {
         // Nothing to see here
@@ -537,6 +541,7 @@ mod tests {
     use zcash_primitives::{
         block::BlockHash,
         transaction::components::Amount,
+        constants::{ChainNetwork},
         zip32::{ExtendedFullViewingKey, ExtendedSpendingKey},
     };
 
@@ -568,44 +573,44 @@ mod tests {
         // Create a block with height SAPLING_ACTIVATION_HEIGHT
         let value = Amount::from_u64(50000).unwrap();
         let (cb1, _) = fake_compact_block(
-            sapling_activation_height(),
+            sapling_activation_height(ChainNetwork::ZEC),
             BlockHash([0; 32]),
             extfvk.clone(),
             value,
         );
         insert_into_cache(db_cache, &cb1);
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
         assert_eq!(get_balance(db_data, 0).unwrap(), value);
 
         // We cannot scan a block of height SAPLING_ACTIVATION_HEIGHT + 2 next
         let (cb2, _) = fake_compact_block(
-            sapling_activation_height() + 1,
+            sapling_activation_height(ChainNetwork::ZEC) + 1,
             cb1.hash(),
             extfvk.clone(),
             value,
         );
         let (cb3, _) = fake_compact_block(
-            sapling_activation_height() + 2,
+            sapling_activation_height(ChainNetwork::ZEC) + 2,
             cb2.hash(),
             extfvk.clone(),
             value,
         );
         insert_into_cache(db_cache, &cb3);
-        match scan_cached_blocks(&tests::network(), db_cache, db_data, None) {
+        match scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC) {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
                 format!(
                     "Expected height of next CompactBlock to be {}, but was {}",
-                    sapling_activation_height() + 1,
-                    sapling_activation_height() + 2
+                    sapling_activation_height(ChainNetwork::ZEC) + 1,
+                    sapling_activation_height(ChainNetwork::ZEC) + 2
                 )
             ),
         }
 
         // If we add a block of height SAPLING_ACTIVATION_HEIGHT + 1, we can now scan both
         insert_into_cache(db_cache, &cb2);
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
         assert_eq!(
             get_balance(db_data, 0).unwrap(),
             Amount::from_u64(150_000).unwrap()
@@ -633,7 +638,7 @@ mod tests {
         // Create a fake CompactBlock sending value to the address
         let value = Amount::from_u64(5).unwrap();
         let (cb, _) = fake_compact_block(
-            sapling_activation_height(),
+            sapling_activation_height(ChainNetwork::ZEC),
             BlockHash([0; 32]),
             extfvk.clone(),
             value,
@@ -641,7 +646,7 @@ mod tests {
         insert_into_cache(db_cache, &cb);
 
         // Scan the cache
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Account balance should reflect the received note
         assert_eq!(get_balance(db_data, 0).unwrap(), value);
@@ -649,11 +654,11 @@ mod tests {
         // Create a second fake CompactBlock sending more value to the address
         let value2 = Amount::from_u64(7).unwrap();
         let (cb2, _) =
-            fake_compact_block(sapling_activation_height() + 1, cb.hash(), extfvk, value2);
+            fake_compact_block(sapling_activation_height(ChainNetwork::ZEC) + 1, cb.hash(), extfvk, value2);
         insert_into_cache(db_cache, &cb2);
 
         // Scan the cache again
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Account balance should reflect both received notes
         assert_eq!(get_balance(db_data, 0).unwrap(), value + value2);
@@ -680,7 +685,7 @@ mod tests {
         // Create a fake CompactBlock sending value to the address
         let value = Amount::from_u64(5).unwrap();
         let (cb, nf) = fake_compact_block(
-            sapling_activation_height(),
+            sapling_activation_height(ChainNetwork::ZEC),
             BlockHash([0; 32]),
             extfvk.clone(),
             value,
@@ -688,7 +693,7 @@ mod tests {
         insert_into_cache(db_cache, &cb);
 
         // Scan the cache
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Account balance should reflect the received note
         assert_eq!(get_balance(db_data, 0).unwrap(), value);
@@ -700,7 +705,7 @@ mod tests {
         insert_into_cache(
             db_cache,
             &fake_compact_block_spending(
-                sapling_activation_height() + 1,
+                sapling_activation_height(ChainNetwork::ZEC) + 1,
                 cb.hash(),
                 (nf, value),
                 extfvk,
@@ -710,7 +715,7 @@ mod tests {
         );
 
         // Scan the cache again
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Account balance should equal the change
         assert_eq!(get_balance(db_data, 0).unwrap(), value - value2);

@@ -123,9 +123,27 @@ impl Sub for BlockHeight {
 
 /// Zcash consensus parameters.
 pub trait Parameters: Clone {
+    /// Returns the activation height for the overwinter network upgrade on a specified chain
+    fn activation_height_overwinter(&self, chain: constants::ChainNetwork) -> Option<BlockHeight>;
+
+    /// Returns the activation height for the sapling network upgrade on a specified chain
+    fn activation_height_sapling(&self, chain: constants::ChainNetwork) -> Option<BlockHeight>;
+
+    /// Returns the activation height for the blossom network upgrade on a specified chain
+    fn activation_height_blossom(&self, chain: constants::ChainNetwork) -> Option<BlockHeight>;
+
+    /// Returns the activation height for the heartwood network upgrade on a specified chain
+    fn activation_height_heartwood(&self, chain: constants::ChainNetwork) -> Option<BlockHeight>;
+
+    /// Returns the activation height for the canopy network upgrade on a specified chain
+    fn activation_height_canopy(&self, chain: constants::ChainNetwork) -> Option<BlockHeight>;
+
+    /// Returns the activation height for the zfuture network upgrade on a specified chain
+    fn activation_height_zfuture(&self, chain: constants::ChainNetwork) -> Option<BlockHeight>;
+
     /// Returns the activation height for a particular network upgrade,
     /// if an activation height has been set.
-    fn activation_height(&self, nu: NetworkUpgrade) -> Option<BlockHeight>;
+    fn activation_height(&self, nu: NetworkUpgrade, chain: constants::ChainNetwork) -> Option<BlockHeight>;
 
     /// Returns the human-readable prefix for Sapling extended full
     /// viewing keys for the network to which this Parameters value applies.
@@ -145,8 +163,8 @@ pub trait Parameters: Clone {
 
     /// Determines whether the specified network upgrade is active as of the
     /// provided block height on the network to which this Parameters value applies.
-    fn is_nu_active(&self, nu: NetworkUpgrade, height: BlockHeight) -> bool {
-        self.activation_height(nu).map_or(false, |h| h <= height)
+    fn is_nu_active(&self, nu: NetworkUpgrade, height: BlockHeight, chain: constants::ChainNetwork) -> bool {
+        self.activation_height(nu, chain).map_or(false, |h| h <= height)
     }
 }
 
@@ -157,15 +175,63 @@ pub struct MainNetwork;
 pub const MAIN_NETWORK: MainNetwork = MainNetwork;
 
 impl Parameters for MainNetwork {
-    fn activation_height(&self, nu: NetworkUpgrade) -> Option<BlockHeight> {
+    /// Returns the activation height for the overwinter network upgrade on a specified chain
+    fn activation_height_overwinter(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match chain {
+            constants::ChainNetwork::VRSC => Some(BlockHeight(0)),
+            constants::ChainNetwork::ZEC => Some(BlockHeight(347_500))
+        }
+    }
+
+    /// Returns the activation height for the sapling network upgrade on a specified chain
+    fn activation_height_sapling(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match chain {
+            constants::ChainNetwork::VRSC => Some(BlockHeight(227_520)),
+            constants::ChainNetwork::ZEC => Some(BlockHeight(419_200))
+        }
+    }
+
+    /// Returns the activation height for the blossom network upgrade on a specified chain
+    fn activation_height_blossom(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match chain {
+            constants::ChainNetwork::VRSC => Some(BlockHeight(u32::MAX)),
+            constants::ChainNetwork::ZEC => Some(BlockHeight(653_600))
+        }
+    }
+
+    /// Returns the activation height for the heartwood network upgrade on a specified chain
+    fn activation_height_heartwood(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match chain {
+            constants::ChainNetwork::VRSC => Some(BlockHeight(u32::MAX)),
+            constants::ChainNetwork::ZEC => Some(BlockHeight(903_000))
+        }
+    }
+
+    /// Returns the activation height for the canopy network upgrade on a specified chain
+    fn activation_height_canopy(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match chain {
+            constants::ChainNetwork::VRSC => Some(BlockHeight(u32::MAX)),
+            constants::ChainNetwork::ZEC => Some(BlockHeight(1_046_400))
+        }
+    }
+
+    /// Returns the activation height for the zfuture network upgrade on a specified chain
+    fn activation_height_zfuture(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match chain {
+            constants::ChainNetwork::VRSC => Some(BlockHeight(u32::MAX)),
+            constants::ChainNetwork::ZEC => None
+        }
+    }
+
+    fn activation_height(&self, nu: NetworkUpgrade, chain: constants::ChainNetwork) -> Option<BlockHeight> {
         match nu {
-            NetworkUpgrade::Overwinter => Some(BlockHeight(0)),
-            NetworkUpgrade::Sapling => Some(BlockHeight(227_520)),
-            NetworkUpgrade::Blossom => Some(BlockHeight(4_000_000_000)),
-            NetworkUpgrade::Heartwood => Some(BlockHeight(4_000_000_001)),
-            NetworkUpgrade::Canopy => Some(BlockHeight(4_000_000_002)),
+            NetworkUpgrade::Overwinter => self.activation_height_overwinter(chain),
+            NetworkUpgrade::Sapling => self.activation_height_sapling(chain),
+            NetworkUpgrade::Blossom => self.activation_height_blossom(chain),
+            NetworkUpgrade::Heartwood => self.activation_height_heartwood(chain),
+            NetworkUpgrade::Canopy => self.activation_height_canopy(chain),
             #[cfg(feature = "zfuture")]
-            NetworkUpgrade::ZFuture => None,
+            NetworkUpgrade::ZFuture => self.activation_height_zfuture(chain),
         }
     }
 
@@ -193,15 +259,63 @@ pub struct TestNetwork;
 pub const TEST_NETWORK: TestNetwork = TestNetwork;
 
 impl Parameters for TestNetwork {
-    fn activation_height(&self, nu: NetworkUpgrade) -> Option<BlockHeight> {
+    /// Returns the activation height for the overwinter network upgrade on a specified chain
+    fn activation_height_overwinter(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match chain {
+            constants::ChainNetwork::VRSC => Some(BlockHeight(0)),
+            constants::ChainNetwork::ZEC => Some(BlockHeight(207_500))
+        }
+    }
+
+    /// Returns the activation height for the sapling network upgrade on a specified chain
+    fn activation_height_sapling(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match chain {
+            constants::ChainNetwork::VRSC => Some(BlockHeight(227_520)),
+            constants::ChainNetwork::ZEC => Some(BlockHeight(280_000))
+        }
+    }
+
+    /// Returns the activation height for the blossom network upgrade on a specified chain
+    fn activation_height_blossom(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match chain {
+            constants::ChainNetwork::VRSC => Some(BlockHeight(u32::MAX)),
+            constants::ChainNetwork::ZEC => Some(BlockHeight(584_000))
+        }
+    }
+
+    /// Returns the activation height for the heartwood network upgrade on a specified chain
+    fn activation_height_heartwood(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match chain {
+            constants::ChainNetwork::VRSC => Some(BlockHeight(u32::MAX)),
+            constants::ChainNetwork::ZEC => Some(BlockHeight(903_800))
+        }
+    }
+
+    /// Returns the activation height for the canopy network upgrade on a specified chain
+    fn activation_height_canopy(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match chain {
+            constants::ChainNetwork::VRSC => Some(BlockHeight(u32::MAX)),
+            constants::ChainNetwork::ZEC => Some(BlockHeight(1_028_500))
+        }
+    }
+
+    /// Returns the activation height for the zfuture network upgrade on a specified chain
+    fn activation_height_zfuture(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match chain {
+            constants::ChainNetwork::VRSC => Some(BlockHeight(u32::MAX)),
+            constants::ChainNetwork::ZEC => None
+        }
+    }
+    
+    fn activation_height(&self, nu: NetworkUpgrade, chain: constants::ChainNetwork) -> Option<BlockHeight> {
         match nu {
-            NetworkUpgrade::Overwinter => Some(BlockHeight(207_500)),
-            NetworkUpgrade::Sapling => Some(BlockHeight(280_000)),
-            NetworkUpgrade::Blossom => Some(BlockHeight(584_000)),
-            NetworkUpgrade::Heartwood => Some(BlockHeight(903_800)),
-            NetworkUpgrade::Canopy => Some(BlockHeight(1_028_500)),
+            NetworkUpgrade::Overwinter => self.activation_height_overwinter(chain),
+            NetworkUpgrade::Sapling => self.activation_height_sapling(chain),
+            NetworkUpgrade::Blossom => self.activation_height_blossom(chain),
+            NetworkUpgrade::Heartwood => self.activation_height_heartwood(chain),
+            NetworkUpgrade::Canopy => self.activation_height_canopy(chain),
             #[cfg(feature = "zfuture")]
-            NetworkUpgrade::ZFuture => None,
+            NetworkUpgrade::ZFuture => self.activation_height_zfuture(chain),
         }
     }
 
@@ -229,10 +343,52 @@ pub enum Network {
 }
 
 impl Parameters for Network {
-    fn activation_height(&self, nu: NetworkUpgrade) -> Option<BlockHeight> {
+    fn activation_height_overwinter(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
         match self {
-            Network::MainNetwork => MAIN_NETWORK.activation_height(nu),
-            Network::TestNetwork => TEST_NETWORK.activation_height(nu),
+            Network::MainNetwork => MAIN_NETWORK.activation_height_overwinter(chain),
+            Network::TestNetwork => TEST_NETWORK.activation_height_overwinter(chain),
+        }
+    }
+
+    fn activation_height_sapling(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match self {
+            Network::MainNetwork => MAIN_NETWORK.activation_height_sapling(chain),
+            Network::TestNetwork => TEST_NETWORK.activation_height_sapling(chain),
+        }
+    }
+
+    fn activation_height_blossom(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match self {
+            Network::MainNetwork => MAIN_NETWORK.activation_height_blossom(chain),
+            Network::TestNetwork => TEST_NETWORK.activation_height_blossom(chain),
+        }
+    }
+
+    fn activation_height_heartwood(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match self {
+            Network::MainNetwork => MAIN_NETWORK.activation_height_heartwood(chain),
+            Network::TestNetwork => TEST_NETWORK.activation_height_heartwood(chain),
+        }
+    }
+
+    fn activation_height_canopy(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match self {
+            Network::MainNetwork => MAIN_NETWORK.activation_height_canopy(chain),
+            Network::TestNetwork => TEST_NETWORK.activation_height_canopy(chain),
+        }
+    }
+
+    fn activation_height_zfuture(&self, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match self {
+            Network::MainNetwork => MAIN_NETWORK.activation_height_zfuture(chain),
+            Network::TestNetwork => TEST_NETWORK.activation_height_zfuture(chain),
+        }
+    }
+
+    fn activation_height(&self, nu: NetworkUpgrade, chain: constants::ChainNetwork) -> Option<BlockHeight> {
+        match self {
+            Network::MainNetwork => MAIN_NETWORK.activation_height(nu, chain),
+            Network::TestNetwork => TEST_NETWORK.activation_height(nu, chain),
         }
     }
 
@@ -413,9 +569,9 @@ impl BranchId {
     /// the given height.
     ///
     /// This is the branch ID that should be used when creating transactions.
-    pub fn for_height<P: Parameters>(parameters: &P, height: BlockHeight) -> Self {
+    pub fn for_height<P: Parameters>(parameters: &P, height: BlockHeight, chain: constants::ChainNetwork) -> Self {
         for nu in UPGRADES_IN_ORDER.iter().rev() {
-            if parameters.is_nu_active(*nu, height) {
+            if parameters.is_nu_active(*nu, height, chain) {
                 return nu.branch_id();
             }
         }
@@ -430,7 +586,7 @@ mod tests {
     use std::convert::TryFrom;
 
     use super::{
-        BlockHeight, BranchId, NetworkUpgrade, Parameters, MAIN_NETWORK, UPGRADES_IN_ORDER,
+        BlockHeight, BranchId, NetworkUpgrade, Parameters, MAIN_NETWORK, UPGRADES_IN_ORDER, constants
     };
 
     #[test]
@@ -439,8 +595,8 @@ mod tests {
             let nu_a = UPGRADES_IN_ORDER[i - 1];
             let nu_b = UPGRADES_IN_ORDER[i];
             match (
-                MAIN_NETWORK.activation_height(nu_a),
-                MAIN_NETWORK.activation_height(nu_b),
+                MAIN_NETWORK.activation_height(nu_a, constants::ChainNetwork::ZEC),
+                MAIN_NETWORK.activation_height(nu_b, constants::ChainNetwork::ZEC),
             ) {
                 (a, b) if a < b => (),
                 _ => panic!(
@@ -453,9 +609,9 @@ mod tests {
 
     #[test]
     fn nu_is_active() {
-        assert!(!MAIN_NETWORK.is_nu_active(NetworkUpgrade::Overwinter, BlockHeight(0)));
-        assert!(!MAIN_NETWORK.is_nu_active(NetworkUpgrade::Overwinter, BlockHeight(347_499)));
-        assert!(MAIN_NETWORK.is_nu_active(NetworkUpgrade::Overwinter, BlockHeight(347_500)));
+        assert!(!MAIN_NETWORK.is_nu_active(NetworkUpgrade::Overwinter, BlockHeight(0), constants::ChainNetwork::ZEC));
+        assert!(!MAIN_NETWORK.is_nu_active(NetworkUpgrade::Overwinter, BlockHeight(347_499), constants::ChainNetwork::ZEC));
+        assert!(MAIN_NETWORK.is_nu_active(NetworkUpgrade::Overwinter, BlockHeight(347_500), constants::ChainNetwork::ZEC));
     }
 
     #[test]
@@ -467,27 +623,27 @@ mod tests {
     #[test]
     fn branch_id_for_height() {
         assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(0)),
+            BranchId::for_height(&MAIN_NETWORK, BlockHeight(0), constants::ChainNetwork::ZEC),
             BranchId::Sprout,
         );
         assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(419_199)),
+            BranchId::for_height(&MAIN_NETWORK, BlockHeight(419_199), constants::ChainNetwork::ZEC),
             BranchId::Overwinter,
         );
         assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(419_200)),
+            BranchId::for_height(&MAIN_NETWORK, BlockHeight(419_200), constants::ChainNetwork::ZEC),
             BranchId::Sapling,
         );
         assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(903_000)),
+            BranchId::for_height(&MAIN_NETWORK, BlockHeight(903_000), constants::ChainNetwork::ZEC),
             BranchId::Heartwood,
         );
         assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(1_046_400)),
+            BranchId::for_height(&MAIN_NETWORK, BlockHeight(1_046_400), constants::ChainNetwork::ZEC),
             BranchId::Canopy,
         );
         assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(5_000_000)),
+            BranchId::for_height(&MAIN_NETWORK, BlockHeight(5_000_000), constants::ChainNetwork::ZEC),
             BranchId::Canopy,
         );
     }

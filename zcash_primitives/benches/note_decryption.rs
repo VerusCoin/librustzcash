@@ -3,15 +3,16 @@ use ff::Field;
 use rand_core::OsRng;
 use zcash_primitives::{
     consensus::{NetworkUpgrade::Canopy, Parameters, TEST_NETWORK},
+    constants::{ChainNetwork},
     note_encryption::{try_sapling_note_decryption, Memo, SaplingNoteEncryption},
     primitives::{Diversifier, PaymentAddress, ValueCommitment},
     transaction::components::{OutputDescription, GROTH_PROOF_SIZE},
     util::generate_random_rseed,
 };
 
-fn bench_note_decryption(c: &mut Criterion) {
+fn bench_note_decryption(c: &mut Criterion, chain_network: ChainNetwork) {
     let mut rng = OsRng;
-    let height = TEST_NETWORK.activation_height(Canopy).unwrap();
+    let height = TEST_NETWORK.activation_height(Canopy, chain_network).unwrap();
 
     let valid_ivk = jubjub::Fr::random(&mut rng);
     let invalid_ivk = jubjub::Fr::random(&mut rng);
@@ -22,7 +23,7 @@ fn bench_note_decryption(c: &mut Criterion) {
         let pk_d = diversifier.g_d().unwrap() * valid_ivk;
         let pa = PaymentAddress::from_parts(diversifier, pk_d).unwrap();
 
-        let rseed = generate_random_rseed(&TEST_NETWORK, height, &mut rng);
+        let rseed = generate_random_rseed(&TEST_NETWORK, height, &mut rng, chain_network);
 
         // Construct the value commitment for the proof instance
         let value = 100;
@@ -61,6 +62,7 @@ fn bench_note_decryption(c: &mut Criterion) {
                 &output.ephemeral_key,
                 &output.cmu,
                 &output.enc_ciphertext,
+                chain_network
             )
             .unwrap()
         })
@@ -75,6 +77,7 @@ fn bench_note_decryption(c: &mut Criterion) {
                 &output.ephemeral_key,
                 &output.cmu,
                 &output.enc_ciphertext,
+                chain_network
             )
         })
     });

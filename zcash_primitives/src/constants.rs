@@ -9,6 +9,13 @@ pub mod mainnet;
 pub mod regtest;
 pub mod testnet;
 
+/// Different networks used for differentiating between sapling activation heights, constants, etc. and their IDs
+#[derive(Copy, Clone)]
+pub enum ChainNetwork {
+    VRSC,
+    ZEC
+}
+
 /// First 64 bytes of the BLAKE2s input during group hash.
 /// This is chosen to be some random string that we couldn't have anticipated when we designed
 /// the algorithm, for rigidity purposes.

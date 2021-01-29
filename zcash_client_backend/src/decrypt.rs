@@ -1,5 +1,6 @@
 use zcash_primitives::{
     consensus::{self, BlockHeight},
+    constants::{ChainNetwork},
     note_encryption::{try_sapling_note_decryption, try_sapling_output_recovery, Memo},
     primitives::{Note, PaymentAddress},
     transaction::Transaction,
@@ -34,6 +35,7 @@ pub fn decrypt_transaction<P: consensus::Parameters>(
     height: BlockHeight,
     tx: &Transaction,
     extfvks: &[ExtendedFullViewingKey],
+    chain_network: ChainNetwork
 ) -> Vec<DecryptedOutput> {
     let mut decrypted = vec![];
 
@@ -52,6 +54,7 @@ pub fn decrypt_transaction<P: consensus::Parameters>(
                 &output.ephemeral_key,
                 &output.cmu,
                 &output.enc_ciphertext,
+                chain_network
             ) {
                 Some(ret) => (ret, false),
                 None => match try_sapling_output_recovery(
@@ -63,6 +66,7 @@ pub fn decrypt_transaction<P: consensus::Parameters>(
                     &output.ephemeral_key,
                     &output.enc_ciphertext,
                     &output.out_ciphertext,
+                    chain_network
                 ) {
                     Some(ret) => (ret, true),
                     None => continue,

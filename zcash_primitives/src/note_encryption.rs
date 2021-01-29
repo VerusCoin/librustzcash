@@ -2,6 +2,7 @@
 
 use crate::{
     consensus::{self, BlockHeight, NetworkUpgrade::Canopy, ZIP212_GRACE_PERIOD},
+    constants::{ChainNetwork},
     primitives::{Diversifier, Note, PaymentAddress, Rseed},
 };
 use blake2b_simd::{Hash as Blake2bHash, Params as Blake2bParams};
@@ -365,9 +366,10 @@ fn parse_note_plaintext_without_memo<P: consensus::Parameters>(
     epk: &jubjub::ExtendedPoint,
     cmu: &bls12_381::Scalar,
     plaintext: &[u8],
+    chain_network: ChainNetwork
 ) -> Option<(Note, PaymentAddress)> {
     // Check note plaintext version
-    if !plaintext_version_is_valid(params, height, plaintext[0]) {
+    if !plaintext_version_is_valid(params, height, plaintext[0], chain_network) {
         return None;
     }
 
@@ -414,10 +416,11 @@ pub fn plaintext_version_is_valid<P: consensus::Parameters>(
     params: &P,
     height: BlockHeight,
     leadbyte: u8,
+    chain_network: ChainNetwork
 ) -> bool {
-    if params.is_nu_active(Canopy, height) {
+    if params.is_nu_active(Canopy, height, chain_network) {
         let grace_period_end_height =
-            params.activation_height(Canopy).unwrap() + ZIP212_GRACE_PERIOD;
+            params.activation_height(Canopy, chain_network).unwrap() + ZIP212_GRACE_PERIOD;
 
         if height < grace_period_end_height && leadbyte != 0x01 && leadbyte != 0x02 {
             // non-{0x01,0x02} received after Canopy activation and before grace period has elapsed
@@ -448,6 +451,7 @@ pub fn try_sapling_note_decryption<P: consensus::Parameters>(
     epk: &jubjub::ExtendedPoint,
     cmu: &bls12_381::Scalar,
     enc_ciphertext: &[u8],
+    chain_network: ChainNetwork
 ) -> Option<(Note, PaymentAddress, Memo)> {
     assert_eq!(enc_ciphertext.len(), ENC_CIPHERTEXT_SIZE);
 
@@ -468,7 +472,7 @@ pub fn try_sapling_note_decryption<P: consensus::Parameters>(
         NOTE_PLAINTEXT_SIZE
     );
 
-    let (note, to) = parse_note_plaintext_without_memo(params, height, ivk, epk, cmu, &plaintext)?;
+    let (note, to) = parse_note_plaintext_without_memo(params, height, ivk, epk, cmu, &plaintext, chain_network)?;
 
     let mut memo = [0u8; 512];
     memo.copy_from_slice(&plaintext[COMPACT_NOTE_SIZE..NOTE_PLAINTEXT_SIZE]);
@@ -492,6 +496,7 @@ pub fn try_sapling_compact_note_decryption<P: consensus::Parameters>(
     epk: &jubjub::ExtendedPoint,
     cmu: &bls12_381::Scalar,
     enc_ciphertext: &[u8],
+    chain_network: ChainNetwork
 ) -> Option<(Note, PaymentAddress)> {
     assert_eq!(enc_ciphertext.len(), COMPACT_NOTE_SIZE);
 
@@ -503,7 +508,7 @@ pub fn try_sapling_compact_note_decryption<P: consensus::Parameters>(
     plaintext.copy_from_slice(&enc_ciphertext);
     ChaCha20Ietf::xor(key.as_bytes(), &[0u8; 12], 1, &mut plaintext);
 
-    parse_note_plaintext_without_memo(params, height, ivk, epk, cmu, &plaintext)
+    parse_note_plaintext_without_memo(params, height, ivk, epk, cmu, &plaintext, chain_network)
 }
 
 /// Recovery of the full note plaintext by the sender.
@@ -522,6 +527,7 @@ pub fn try_sapling_output_recovery_with_ock<P: consensus::Parameters>(
     epk: &jubjub::ExtendedPoint,
     enc_ciphertext: &[u8],
     out_ciphertext: &[u8],
+    chain_network: ChainNetwork
 ) -> Option<(Note, PaymentAddress, Memo)> {
     assert_eq!(enc_ciphertext.len(), ENC_CIPHERTEXT_SIZE);
     assert_eq!(out_ciphertext.len(), OUT_CIPHERTEXT_SIZE);
@@ -568,7 +574,7 @@ pub fn try_sapling_output_recovery_with_ock<P: consensus::Parameters>(
     );
 
     // Check note plaintext version
-    if !plaintext_version_is_valid(params, height, plaintext[0]) {
+    if !plaintext_version_is_valid(params, height, plaintext[0], chain_network) {
         return None;
     }
 
@@ -630,6 +636,7 @@ pub fn try_sapling_output_recovery<P: consensus::Parameters>(
     epk: &jubjub::ExtendedPoint,
     enc_ciphertext: &[u8],
     out_ciphertext: &[u8],
+    chain_network: ChainNetwork
 ) -> Option<(Note, PaymentAddress, Memo)> {
     try_sapling_output_recovery_with_ock::<P>(
         params,
@@ -639,6 +646,7 @@ pub fn try_sapling_output_recovery<P: consensus::Parameters>(
         epk,
         enc_ciphertext,
         out_ciphertext,
+        chain_network
     )
 }
 
@@ -666,6 +674,9 @@ mod tests {
             BlockHeight,
             NetworkUpgrade::{Canopy, Sapling},
             Parameters, TEST_NETWORK, ZIP212_GRACE_PERIOD,
+        },
+        constants::{
+            ChainNetwork
         },
         keys::OutgoingViewingKey,
         primitives::{Diversifier, PaymentAddress, Rseed, ValueCommitment},
@@ -812,7 +823,8 @@ mod tests {
             &ivk,
             &epk,
             &cmu,
-            &enc_ciphertext
+            &enc_ciphertext,
+            ChainNetwork::ZEC
         )
         .is_some());
         assert!(try_sapling_compact_note_decryption(
@@ -821,7 +833,8 @@ mod tests {
             &ivk,
             &epk,
             &cmu,
-            &enc_ciphertext[..COMPACT_NOTE_SIZE]
+            &enc_ciphertext[..COMPACT_NOTE_SIZE],
+            ChainNetwork::ZEC
         )
         .is_some());
 
@@ -834,6 +847,7 @@ mod tests {
             &epk,
             &enc_ciphertext,
             &out_ciphertext,
+            ChainNetwork::ZEC
         );
 
         let ock_output_recovery = try_sapling_output_recovery_with_ock(
@@ -844,6 +858,7 @@ mod tests {
             &epk,
             &enc_ciphertext,
             &out_ciphertext,
+            ChainNetwork::ZEC
         );
         assert!(ovk_output_recovery.is_some());
         assert!(ock_output_recovery.is_some());
@@ -878,7 +893,7 @@ mod tests {
         };
         let cv = value_commitment.commitment().into();
 
-        let rseed = generate_random_rseed(&TEST_NETWORK, height, &mut rng);
+        let rseed = generate_random_rseed(&TEST_NETWORK, height, &mut rng, ChainNetwork::ZEC);
 
         let note = pa.create_note(value, rseed).unwrap();
         let cmu = note.cmu();
@@ -980,8 +995,8 @@ mod tests {
     fn decryption_with_invalid_ivk() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -994,7 +1009,8 @@ mod tests {
                     &jubjub::Fr::random(&mut rng),
                     &epk,
                     &cmu,
-                    &enc_ciphertext
+                    &enc_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1005,8 +1021,8 @@ mod tests {
     fn decryption_with_invalid_epk() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1019,7 +1035,8 @@ mod tests {
                     &ivk,
                     &jubjub::ExtendedPoint::random(&mut rng),
                     &cmu,
-                    &enc_ciphertext
+                    &enc_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1030,8 +1047,8 @@ mod tests {
     fn decryption_with_invalid_cmu() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1044,7 +1061,8 @@ mod tests {
                     &ivk,
                     &epk,
                     &bls12_381::Scalar::random(&mut rng),
-                    &enc_ciphertext
+                    &enc_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1055,8 +1073,8 @@ mod tests {
     fn decryption_with_invalid_tag() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1071,7 +1089,8 @@ mod tests {
                     &ivk,
                     &epk,
                     &cmu,
-                    &enc_ciphertext
+                    &enc_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1081,7 +1100,7 @@ mod tests {
     #[test]
     fn decryption_with_invalid_version_byte() {
         let mut rng = OsRng;
-        let canopy_activation_height = TEST_NETWORK.activation_height(Canopy).unwrap();
+        let canopy_activation_height = TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap();
         let heights = [
             canopy_activation_height - 1,
             canopy_activation_height,
@@ -1109,7 +1128,8 @@ mod tests {
                     &ivk,
                     &epk,
                     &cmu,
-                    &enc_ciphertext
+                    &enc_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1120,8 +1140,8 @@ mod tests {
     fn decryption_with_invalid_diversifier() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1144,7 +1164,8 @@ mod tests {
                     &ivk,
                     &epk,
                     &cmu,
-                    &enc_ciphertext
+                    &enc_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1155,8 +1176,8 @@ mod tests {
     fn decryption_with_incorrect_diversifier() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1180,7 +1201,8 @@ mod tests {
                     &ivk,
                     &epk,
                     &cmu,
-                    &enc_ciphertext
+                    &enc_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1191,8 +1213,8 @@ mod tests {
     fn compact_decryption_with_invalid_ivk() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1205,7 +1227,8 @@ mod tests {
                     &jubjub::Fr::random(&mut rng),
                     &epk,
                     &cmu,
-                    &enc_ciphertext[..COMPACT_NOTE_SIZE]
+                    &enc_ciphertext[..COMPACT_NOTE_SIZE],
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1216,8 +1239,8 @@ mod tests {
     fn compact_decryption_with_invalid_epk() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1230,7 +1253,8 @@ mod tests {
                     &ivk,
                     &jubjub::ExtendedPoint::random(&mut rng),
                     &cmu,
-                    &enc_ciphertext[..COMPACT_NOTE_SIZE]
+                    &enc_ciphertext[..COMPACT_NOTE_SIZE],
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1241,8 +1265,8 @@ mod tests {
     fn compact_decryption_with_invalid_cmu() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1255,7 +1279,8 @@ mod tests {
                     &ivk,
                     &epk,
                     &bls12_381::Scalar::random(&mut rng),
-                    &enc_ciphertext[..COMPACT_NOTE_SIZE]
+                    &enc_ciphertext[..COMPACT_NOTE_SIZE],
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1265,7 +1290,7 @@ mod tests {
     #[test]
     fn compact_decryption_with_invalid_version_byte() {
         let mut rng = OsRng;
-        let canopy_activation_height = TEST_NETWORK.activation_height(Canopy).unwrap();
+        let canopy_activation_height = TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap();
         let heights = [
             canopy_activation_height - 1,
             canopy_activation_height,
@@ -1293,7 +1318,8 @@ mod tests {
                     &ivk,
                     &epk,
                     &cmu,
-                    &enc_ciphertext[..COMPACT_NOTE_SIZE]
+                    &enc_ciphertext[..COMPACT_NOTE_SIZE],
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1304,8 +1330,8 @@ mod tests {
     fn compact_decryption_with_invalid_diversifier() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1328,7 +1354,8 @@ mod tests {
                     &ivk,
                     &epk,
                     &cmu,
-                    &enc_ciphertext[..COMPACT_NOTE_SIZE]
+                    &enc_ciphertext[..COMPACT_NOTE_SIZE],
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1339,8 +1366,8 @@ mod tests {
     fn compact_decryption_with_incorrect_diversifier() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1363,7 +1390,8 @@ mod tests {
                     &ivk,
                     &epk,
                     &cmu,
-                    &enc_ciphertext[..COMPACT_NOTE_SIZE]
+                    &enc_ciphertext[..COMPACT_NOTE_SIZE],
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1374,8 +1402,8 @@ mod tests {
     fn recovery_with_invalid_ovk() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1392,7 +1420,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1403,8 +1432,8 @@ mod tests {
     fn recovery_with_invalid_ock() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1419,7 +1448,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1430,8 +1460,8 @@ mod tests {
     fn recovery_with_invalid_cv() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1447,7 +1477,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1458,8 +1489,8 @@ mod tests {
     fn recovery_with_invalid_cmu() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1475,7 +1506,8 @@ mod tests {
                     &bls12_381::Scalar::random(&mut rng),
                     &epk,
                     &enc_ctext,
-                    &out_ctext
+                    &out_ctext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1488,7 +1520,8 @@ mod tests {
                     &bls12_381::Scalar::random(&mut rng),
                     &epk,
                     &enc_ctext,
-                    &out_ctext
+                    &out_ctext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1499,8 +1532,8 @@ mod tests {
     fn recovery_with_invalid_epk() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1516,7 +1549,8 @@ mod tests {
                     &cmu,
                     &jubjub::ExtendedPoint::random(&mut rng),
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1529,7 +1563,8 @@ mod tests {
                     &cmu,
                     &jubjub::ExtendedPoint::random(&mut rng),
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1540,8 +1575,8 @@ mod tests {
     fn recovery_with_invalid_enc_tag() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1558,7 +1593,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1570,7 +1606,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1581,8 +1618,8 @@ mod tests {
     fn recovery_with_invalid_out_tag() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1599,7 +1636,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1611,7 +1649,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1621,7 +1660,7 @@ mod tests {
     #[test]
     fn recovery_with_invalid_version_byte() {
         let mut rng = OsRng;
-        let canopy_activation_height = TEST_NETWORK.activation_height(Canopy).unwrap();
+        let canopy_activation_height = TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap();
         let heights = [
             canopy_activation_height - 1,
             canopy_activation_height,
@@ -1651,7 +1690,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1663,7 +1703,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1674,8 +1715,8 @@ mod tests {
     fn recovery_with_invalid_diversifier() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1700,7 +1741,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1712,7 +1754,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1723,8 +1766,8 @@ mod tests {
     fn recovery_with_incorrect_diversifier() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1749,7 +1792,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1761,7 +1805,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1772,8 +1817,8 @@ mod tests {
     fn recovery_with_invalid_pk_d() {
         let mut rng = OsRng;
         let heights = [
-            TEST_NETWORK.activation_height(Sapling).unwrap(),
-            TEST_NETWORK.activation_height(Canopy).unwrap(),
+            TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap(),
+            TEST_NETWORK.activation_height(Canopy, ChainNetwork::ZEC).unwrap(),
         ];
 
         for &height in heights.iter() {
@@ -1790,7 +1835,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1802,7 +1848,8 @@ mod tests {
                     &cmu,
                     &epk,
                     &enc_ciphertext,
-                    &out_ciphertext
+                    &out_ciphertext,
+                    ChainNetwork::ZEC
                 ),
                 None
             );
@@ -1831,7 +1878,7 @@ mod tests {
             };
         }
 
-        let height = TEST_NETWORK.activation_height(Sapling).unwrap();
+        let height = TEST_NETWORK.activation_height(Sapling, ChainNetwork::ZEC).unwrap();
 
         for tv in test_vectors {
             //
@@ -1869,7 +1916,7 @@ mod tests {
             // (Tested first because it only requires immutable references.)
             //
 
-            match try_sapling_note_decryption(&TEST_NETWORK, height, &ivk, &epk, &cmu, &tv.c_enc) {
+            match try_sapling_note_decryption(&TEST_NETWORK, height, &ivk, &epk, &cmu, &tv.c_enc, ChainNetwork::ZEC) {
                 Some((decrypted_note, decrypted_to, decrypted_memo)) => {
                     assert_eq!(decrypted_note, note);
                     assert_eq!(decrypted_to, to);
@@ -1885,6 +1932,7 @@ mod tests {
                 &epk,
                 &cmu,
                 &tv.c_enc[..COMPACT_NOTE_SIZE],
+                ChainNetwork::ZEC
             ) {
                 Some((decrypted_note, decrypted_to)) => {
                     assert_eq!(decrypted_note, note);
@@ -1902,6 +1950,7 @@ mod tests {
                 &epk,
                 &tv.c_enc,
                 &tv.c_out,
+                ChainNetwork::ZEC
             ) {
                 Some((decrypted_note, decrypted_to, decrypted_memo)) => {
                     assert_eq!(decrypted_note, note);

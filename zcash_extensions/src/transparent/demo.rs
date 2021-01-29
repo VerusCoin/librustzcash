@@ -469,6 +469,7 @@ mod tests {
     use zcash_primitives::{
         consensus::{BranchId, H0, TEST_NETWORK},
         extensions::transparent::{self as tze, Extension, FromPayload, ToPayload},
+        constants::{ChainNetwork},
         legacy::TransparentAddress,
         merkle_tree::{CommitmentTree, IncrementalWitness},
         primitives::Rseed,
@@ -728,7 +729,7 @@ mod tests {
             .map_err(|e| format!("open failure: {:?}", e))
             .unwrap();
         let (tx_a, _) = builder_a
-            .build(BranchId::Canopy, &prover)
+            .build(BranchId::Canopy, &prover, ChainNetwork::ZEC)
             .map_err(|e| format!("build failure: {:?}", e))
             .unwrap();
 
@@ -747,7 +748,7 @@ mod tests {
             .map_err(|e| format!("transfer failure: {:?}", e))
             .unwrap();
         let (tx_b, _) = builder_b
-            .build(BranchId::Canopy, &prover)
+            .build(BranchId::Canopy, &prover, ChainNetwork::ZEC)
             .map_err(|e| format!("build failure: {:?}", e))
             .unwrap();
 
@@ -773,7 +774,7 @@ mod tests {
             .unwrap();
 
         let (tx_c, _) = builder_c
-            .build(BranchId::Canopy, &prover)
+            .build(BranchId::Canopy, &prover, ChainNetwork::ZEC)
             .map_err(|e| format!("build failure: {:?}", e))
             .unwrap();
 

@@ -65,7 +65,10 @@ use protobuf::parse_from_bytes;
 use rusqlite::{Connection, NO_PARAMS};
 use std::path::Path;
 
-use zcash_primitives::consensus::{self, BlockHeight, NetworkUpgrade};
+use zcash_primitives::{
+    consensus::{self, BlockHeight, NetworkUpgrade},
+    constants::{ChainNetwork}
+};
 
 use zcash_client_backend::proto::compact_formats::CompactBlock;
 
@@ -103,11 +106,12 @@ pub fn validate_combined_chain<Params: consensus::Parameters, P: AsRef<Path>, Q:
     parameters: Params,
     db_cache: P,
     db_data: Q,
+    chain_network: ChainNetwork
 ) -> Result<(), Error> {
     let cache = Connection::open(db_cache)?;
     let data = Connection::open(db_data)?;
     let sapling_activation_height = parameters
-        .activation_height(NetworkUpgrade::Sapling)
+        .activation_height(NetworkUpgrade::Sapling, chain_network)
         .ok_or(Error(ErrorKind::SaplingNotActive))?;
 
     // Recall where we synced up to previously.
@@ -195,10 +199,11 @@ pub fn rewind_to_height<Params: consensus::Parameters, P: AsRef<Path>>(
     parameters: Params,
     db_data: P,
     height: BlockHeight,
+    chain_network: ChainNetwork
 ) -> Result<(), Error> {
     let data = Connection::open(db_data)?;
     let sapling_activation_height = parameters
-        .activation_height(NetworkUpgrade::Sapling)
+        .activation_height(NetworkUpgrade::Sapling, chain_network)
         .ok_or(Error(ErrorKind::SaplingNotActive))?;
 
     // Recall where we synced up to previously.
@@ -245,6 +250,7 @@ mod tests {
     use zcash_primitives::{
         block::BlockHash,
         transaction::components::Amount,
+        constants::{ChainNetwork},
         zip32::{ExtendedFullViewingKey, ExtendedSpendingKey},
     };
 
@@ -274,11 +280,11 @@ mod tests {
         init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()]).unwrap();
 
         // Empty chain should be valid
-        validate_combined_chain(tests::network(), db_cache, db_data).unwrap();
+        validate_combined_chain(tests::network(), db_cache, db_data, ChainNetwork::ZEC).unwrap();
 
         // Create a fake CompactBlock sending value to the address
         let (cb, _) = fake_compact_block(
-            sapling_activation_height(),
+            sapling_activation_height(ChainNetwork::ZEC),
             BlockHash([0; 32]),
             extfvk.clone(),
             Amount::from_u64(5).unwrap(),
@@ -286,17 +292,17 @@ mod tests {
         insert_into_cache(db_cache, &cb);
 
         // Cache-only chain should be valid
-        validate_combined_chain(tests::network(), db_cache, db_data).unwrap();
+        validate_combined_chain(tests::network(), db_cache, db_data, ChainNetwork::ZEC).unwrap();
 
         // Scan the cache
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Data-only chain should be valid
-        validate_combined_chain(tests::network(), db_cache, db_data).unwrap();
+        validate_combined_chain(tests::network(), db_cache, db_data, ChainNetwork::ZEC).unwrap();
 
         // Create a second fake CompactBlock sending more value to the address
         let (cb2, _) = fake_compact_block(
-            sapling_activation_height() + 1,
+            sapling_activation_height(ChainNetwork::ZEC) + 1,
             cb.hash(),
             extfvk,
             Amount::from_u64(7).unwrap(),
@@ -304,13 +310,13 @@ mod tests {
         insert_into_cache(db_cache, &cb2);
 
         // Data+cache chain should be valid
-        validate_combined_chain(tests::network(), db_cache, db_data).unwrap();
+        validate_combined_chain(tests::network(), db_cache, db_data, ChainNetwork::ZEC).unwrap();
 
         // Scan the cache again
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Data-only chain should be valid
-        validate_combined_chain(tests::network(), db_cache, db_data).unwrap();
+        validate_combined_chain(tests::network(), db_cache, db_data, ChainNetwork::ZEC).unwrap();
     }
 
     #[test]
@@ -330,13 +336,13 @@ mod tests {
 
         // Create some fake CompactBlocks
         let (cb, _) = fake_compact_block(
-            sapling_activation_height(),
+            sapling_activation_height(ChainNetwork::ZEC),
             BlockHash([0; 32]),
             extfvk.clone(),
             Amount::from_u64(5).unwrap(),
         );
         let (cb2, _) = fake_compact_block(
-            sapling_activation_height() + 1,
+            sapling_activation_height(ChainNetwork::ZEC) + 1,
             cb.hash(),
             extfvk.clone(),
             Amount::from_u64(7).unwrap(),
@@ -345,20 +351,20 @@ mod tests {
         insert_into_cache(db_cache, &cb2);
 
         // Scan the cache
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Data-only chain should be valid
-        validate_combined_chain(tests::network(), db_cache, db_data).unwrap();
+        validate_combined_chain(tests::network(), db_cache, db_data, ChainNetwork::ZEC).unwrap();
 
         // Create more fake CompactBlocks that don't connect to the scanned ones
         let (cb3, _) = fake_compact_block(
-            sapling_activation_height() + 2,
+            sapling_activation_height(ChainNetwork::ZEC) + 2,
             BlockHash([1; 32]),
             extfvk.clone(),
             Amount::from_u64(8).unwrap(),
         );
         let (cb4, _) = fake_compact_block(
-            sapling_activation_height() + 3,
+            sapling_activation_height(ChainNetwork::ZEC) + 3,
             cb3.hash(),
             extfvk.clone(),
             Amount::from_u64(3).unwrap(),
@@ -367,10 +373,10 @@ mod tests {
         insert_into_cache(db_cache, &cb4);
 
         // Data+cache chain should be invalid at the data/cache boundary
-        match validate_combined_chain(tests::network(), db_cache, db_data) {
+        match validate_combined_chain(tests::network(), db_cache, db_data, ChainNetwork::ZEC) {
             Err(e) => match e.kind() {
                 ErrorKind::InvalidChain(upper_bound, _) => {
-                    assert_eq!(*upper_bound, sapling_activation_height() + 1)
+                    assert_eq!(*upper_bound, sapling_activation_height(ChainNetwork::ZEC) + 1)
                 }
                 _ => panic!(),
             },
@@ -395,13 +401,13 @@ mod tests {
 
         // Create some fake CompactBlocks
         let (cb, _) = fake_compact_block(
-            sapling_activation_height(),
+            sapling_activation_height(ChainNetwork::ZEC),
             BlockHash([0; 32]),
             extfvk.clone(),
             Amount::from_u64(5).unwrap(),
         );
         let (cb2, _) = fake_compact_block(
-            sapling_activation_height() + 1,
+            sapling_activation_height(ChainNetwork::ZEC) + 1,
             cb.hash(),
             extfvk.clone(),
             Amount::from_u64(7).unwrap(),
@@ -410,20 +416,20 @@ mod tests {
         insert_into_cache(db_cache, &cb2);
 
         // Scan the cache
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Data-only chain should be valid
-        validate_combined_chain(tests::network(), db_cache, db_data).unwrap();
+        validate_combined_chain(tests::network(), db_cache, db_data, ChainNetwork::ZEC).unwrap();
 
         // Create more fake CompactBlocks that contain a reorg
         let (cb3, _) = fake_compact_block(
-            sapling_activation_height() + 2,
+            sapling_activation_height(ChainNetwork::ZEC) + 2,
             cb2.hash(),
             extfvk.clone(),
             Amount::from_u64(8).unwrap(),
         );
         let (cb4, _) = fake_compact_block(
-            sapling_activation_height() + 3,
+            sapling_activation_height(ChainNetwork::ZEC) + 3,
             BlockHash([1; 32]),
             extfvk.clone(),
             Amount::from_u64(3).unwrap(),
@@ -432,10 +438,10 @@ mod tests {
         insert_into_cache(db_cache, &cb4);
 
         // Data+cache chain should be invalid inside the cache
-        match validate_combined_chain(tests::network(), db_cache, db_data) {
+        match validate_combined_chain(tests::network(), db_cache, db_data, ChainNetwork::ZEC) {
             Err(e) => match e.kind() {
                 ErrorKind::InvalidChain(upper_bound, _) => {
-                    assert_eq!(*upper_bound, sapling_activation_height() + 2)
+                    assert_eq!(*upper_bound, sapling_activation_height(ChainNetwork::ZEC) + 2)
                 }
                 _ => panic!(),
             },
@@ -465,36 +471,36 @@ mod tests {
         let value = Amount::from_u64(5).unwrap();
         let value2 = Amount::from_u64(7).unwrap();
         let (cb, _) = fake_compact_block(
-            sapling_activation_height(),
+            sapling_activation_height(ChainNetwork::ZEC),
             BlockHash([0; 32]),
             extfvk.clone(),
             value,
         );
         let (cb2, _) =
-            fake_compact_block(sapling_activation_height() + 1, cb.hash(), extfvk, value2);
+            fake_compact_block(sapling_activation_height(ChainNetwork::ZEC) + 1, cb.hash(), extfvk, value2);
         insert_into_cache(db_cache, &cb);
         insert_into_cache(db_cache, &cb2);
 
         // Scan the cache
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Account balance should reflect both received notes
         assert_eq!(get_balance(db_data, 0).unwrap(), value + value2);
 
         // "Rewind" to height of last scanned block
-        rewind_to_height(tests::network(), db_data, sapling_activation_height() + 1).unwrap();
+        rewind_to_height(tests::network(), db_data, sapling_activation_height(ChainNetwork::ZEC) + 1, ChainNetwork::ZEC).unwrap();
 
         // Account balance should be unaltered
         assert_eq!(get_balance(db_data, 0).unwrap(), value + value2);
 
         // Rewind so that one block is dropped
-        rewind_to_height(tests::network(), db_data, sapling_activation_height()).unwrap();
+        rewind_to_height(tests::network(), db_data, sapling_activation_height(ChainNetwork::ZEC), ChainNetwork::ZEC).unwrap();
 
         // Account balance should only contain the first received note
         assert_eq!(get_balance(db_data, 0).unwrap(), value);
 
         // Scan the cache again
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Account balance should again reflect both received notes
         assert_eq!(get_balance(db_data, 0).unwrap(), value + value2);

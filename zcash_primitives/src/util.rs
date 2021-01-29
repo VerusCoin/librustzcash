@@ -3,6 +3,7 @@ use blake2b_simd::Params;
 use crate::{
     consensus::{self, BlockHeight, NetworkUpgrade},
     primitives::Rseed,
+    constants::{ChainNetwork}
 };
 
 use ff::Field;
@@ -22,8 +23,9 @@ pub fn generate_random_rseed<P: consensus::Parameters, R: RngCore + CryptoRng>(
     params: &P,
     height: BlockHeight,
     rng: &mut R,
+    chain_network: ChainNetwork
 ) -> Rseed {
-    if params.is_nu_active(NetworkUpgrade::Canopy, height) {
+    if params.is_nu_active(NetworkUpgrade::Canopy, height, chain_network) {
         let mut buffer = [0u8; 32];
         rng.fill_bytes(&mut buffer);
         Rseed::AfterZip212(buffer)

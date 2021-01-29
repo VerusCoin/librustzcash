@@ -99,6 +99,7 @@ mod tests {
     use zcash_primitives::{
         block::BlockHash,
         consensus::{BlockHeight, Network, NetworkUpgrade, Parameters},
+        constants::{ChainNetwork},
         note_encryption::{Memo, SaplingNoteEncryption},
         primitives::{Note, PaymentAddress},
         transaction::components::Amount,
@@ -117,16 +118,16 @@ mod tests {
     }
 
     #[cfg(feature = "mainnet")]
-    pub(crate) fn sapling_activation_height() -> BlockHeight {
+    pub(crate) fn sapling_activation_height(chain_network: ChainNetwork) -> BlockHeight {
         Network::MainNetwork
-            .activation_height(NetworkUpgrade::Sapling)
+            .activation_height(NetworkUpgrade::Sapling, chain_network)
             .unwrap()
     }
 
     #[cfg(not(feature = "mainnet"))]
-    pub(crate) fn sapling_activation_height() -> BlockHeight {
+    pub(crate) fn sapling_activation_height(chain_network: ChainNetwork) -> BlockHeight {
         Network::TestNetwork
-            .activation_height(NetworkUpgrade::Sapling)
+            .activation_height(NetworkUpgrade::Sapling, chain_network)
             .unwrap()
     }
 
@@ -142,7 +143,7 @@ mod tests {
 
         // Create a fake Note for the account
         let mut rng = OsRng;
-        let rseed = generate_random_rseed(&network(), height, &mut rng);
+        let rseed = generate_random_rseed(&network(), height, &mut rng, ChainNetwork::ZEC);
         let note = Note {
             g_d: to.diversifier().g_d().unwrap(),
             pk_d: to.pk_d().clone(),
@@ -190,7 +191,7 @@ mod tests {
         value: Amount,
     ) -> CompactBlock {
         let mut rng = OsRng;
-        let rseed = generate_random_rseed(&network(), height, &mut rng);
+        let rseed = generate_random_rseed(&network(), height, &mut rng, ChainNetwork::ZEC);
 
         // Create a fake CompactBlock containing the note
         let mut cspend = CompactSpend::new();
@@ -230,7 +231,7 @@ mod tests {
         // Create a fake Note for the change
         ctx.outputs.push({
             let change_addr = extfvk.default_address().unwrap().1;
-            let rseed = generate_random_rseed(&network(), height, &mut rng);
+            let rseed = generate_random_rseed(&network(), height, &mut rng, ChainNetwork::ZEC);
             let note = Note {
                 g_d: change_addr.diversifier().g_d().unwrap(),
                 pk_d: change_addr.pk_d().clone(),

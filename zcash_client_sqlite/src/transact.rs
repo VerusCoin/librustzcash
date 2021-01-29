@@ -8,6 +8,7 @@ use zcash_client_backend::{address::RecipientAddress, encoding::encode_extended_
 use zcash_primitives::{
     consensus,
     keys::OutgoingViewingKey,
+    constants::{ChainNetwork},
     merkle_tree::{IncrementalWitness, MerklePath},
     note_encryption::Memo,
     primitives::{Diversifier, Note, Rseed},
@@ -132,6 +133,7 @@ pub fn create_to_address<DB: AsRef<Path>, P: consensus::Parameters>(
     value: Amount,
     memo: Option<Memo>,
     ovk_policy: OvkPolicy,
+    chain_network: ChainNetwork
 ) -> Result<i64, Error> {
     let data = Connection::open(db_data)?;
 
@@ -284,11 +286,11 @@ pub fn create_to_address<DB: AsRef<Path>, P: consensus::Parameters>(
     }
     match to {
         RecipientAddress::Shielded(to) => {
-            builder.add_sapling_output(ovk, to.clone(), value, memo.clone())
+            builder.add_sapling_output(ovk, to.clone(), value, memo.clone(), chain_network)
         }
         RecipientAddress::Transparent(to) => builder.add_transparent_output(&to, value),
     }?;
-    let (tx, tx_metadata) = builder.build(consensus_branch_id, &prover)?;
+    let (tx, tx_metadata) = builder.build(consensus_branch_id, &prover, chain_network)?;
     // We only called add_sapling_output() once.
     let output_index = match tx_metadata.output_index(0) {
         Some(idx) => idx as i64,
@@ -372,6 +374,7 @@ mod tests {
     use zcash_primitives::{
         block::BlockHash,
         consensus,
+        constants::{ChainNetwork},
         note_encryption::try_sapling_output_recovery,
         prover::TxProver,
         transaction::{components::Amount, Transaction},
@@ -425,6 +428,7 @@ mod tests {
             Amount::from_u64(1).unwrap(),
             None,
             OvkPolicy::Sender,
+            ChainNetwork::ZEC
         ) {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(e.to_string(), "Incorrect ExtendedSpendingKey for account 0"),
@@ -439,6 +443,7 @@ mod tests {
             Amount::from_u64(1).unwrap(),
             None,
             OvkPolicy::Sender,
+            ChainNetwork::ZEC
         ) {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(e.to_string(), "Incorrect ExtendedSpendingKey for account 1"),
@@ -468,6 +473,7 @@ mod tests {
             Amount::from_u64(1).unwrap(),
             None,
             OvkPolicy::Sender,
+            ChainNetwork::ZEC
         ) {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(e.to_string(), "Must scan blocks first"),
@@ -501,6 +507,7 @@ mod tests {
             Amount::from_u64(1).unwrap(),
             None,
             OvkPolicy::Sender,
+            ChainNetwork::ZEC
         ) {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -528,13 +535,13 @@ mod tests {
         // Add funds to the wallet in a single note
         let value = Amount::from_u64(50000).unwrap();
         let (cb, _) = fake_compact_block(
-            sapling_activation_height(),
+            sapling_activation_height(ChainNetwork::ZEC),
             BlockHash([0; 32]),
             extfvk.clone(),
             value,
         );
         insert_into_cache(db_cache, &cb);
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Verified balance matches total balance
         assert_eq!(get_balance(db_data, 0).unwrap(), value);
@@ -542,13 +549,13 @@ mod tests {
 
         // Add more funds to the wallet in a second note
         let (cb, _) = fake_compact_block(
-            sapling_activation_height() + 1,
+            sapling_activation_height(ChainNetwork::ZEC) + 1,
             cb.hash(),
             extfvk.clone(),
             value,
         );
         insert_into_cache(db_cache, &cb);
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Verified balance does not include the second note
         assert_eq!(get_balance(db_data, 0).unwrap(), value + value);
@@ -567,6 +574,7 @@ mod tests {
             Amount::from_u64(70000).unwrap(),
             None,
             OvkPolicy::Sender,
+            ChainNetwork::ZEC
         ) {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -579,14 +587,14 @@ mod tests {
         // note is verified
         for i in 2..10 {
             let (cb, _) = fake_compact_block(
-                sapling_activation_height() + i,
+                sapling_activation_height(ChainNetwork::ZEC) + i,
                 cb.hash(),
                 extfvk.clone(),
                 value,
             );
             insert_into_cache(db_cache, &cb);
         }
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Second spend still fails
         match create_to_address(
@@ -599,6 +607,7 @@ mod tests {
             Amount::from_u64(70000).unwrap(),
             None,
             OvkPolicy::Sender,
+            ChainNetwork::ZEC
         ) {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -609,13 +618,13 @@ mod tests {
 
         // Mine block 11 so that the second note becomes verified
         let (cb, _) = fake_compact_block(
-            sapling_activation_height() + 10,
+            sapling_activation_height(ChainNetwork::ZEC) + 10,
             cb.hash(),
             extfvk.clone(),
             value,
         );
         insert_into_cache(db_cache, &cb);
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Second spend should now succeed
         create_to_address(
@@ -628,6 +637,7 @@ mod tests {
             Amount::from_u64(70000).unwrap(),
             None,
             OvkPolicy::Sender,
+            ChainNetwork::ZEC
         )
         .unwrap();
     }
@@ -650,13 +660,13 @@ mod tests {
         // Add funds to the wallet in a single note
         let value = Amount::from_u64(50000).unwrap();
         let (cb, _) = fake_compact_block(
-            sapling_activation_height(),
+            sapling_activation_height(ChainNetwork::ZEC),
             BlockHash([0; 32]),
             extfvk.clone(),
             value,
         );
         insert_into_cache(db_cache, &cb);
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
         assert_eq!(get_balance(db_data, 0).unwrap(), value);
 
         // Send some of the funds to another address
@@ -672,6 +682,7 @@ mod tests {
             Amount::from_u64(15000).unwrap(),
             None,
             OvkPolicy::Sender,
+            ChainNetwork::ZEC
         )
         .unwrap();
 
@@ -686,6 +697,7 @@ mod tests {
             Amount::from_u64(2000).unwrap(),
             None,
             OvkPolicy::Sender,
+            ChainNetwork::ZEC
         ) {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -698,14 +710,14 @@ mod tests {
         // until just before the first transaction expires
         for i in 1..22 {
             let (cb, _) = fake_compact_block(
-                sapling_activation_height() + i,
+                sapling_activation_height(ChainNetwork::ZEC) + i,
                 cb.hash(),
                 ExtendedFullViewingKey::from(&ExtendedSpendingKey::master(&[i as u8])),
                 value,
             );
             insert_into_cache(db_cache, &cb);
         }
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Second spend still fails
         match create_to_address(
@@ -718,6 +730,7 @@ mod tests {
             Amount::from_u64(2000).unwrap(),
             None,
             OvkPolicy::Sender,
+            ChainNetwork::ZEC
         ) {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -728,13 +741,13 @@ mod tests {
 
         // Mine block SAPLING_ACTIVATION_HEIGHT + 22 so that the first transaction expires
         let (cb, _) = fake_compact_block(
-            sapling_activation_height() + 22,
+            sapling_activation_height(ChainNetwork::ZEC) + 22,
             cb.hash(),
             ExtendedFullViewingKey::from(&ExtendedSpendingKey::master(&[22])),
             value,
         );
         insert_into_cache(db_cache, &cb);
-        scan_cached_blocks(&tests::network(), db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Second spend should now succeed
         create_to_address(
@@ -747,6 +760,7 @@ mod tests {
             Amount::from_u64(2000).unwrap(),
             None,
             OvkPolicy::Sender,
+            ChainNetwork::ZEC
         )
         .unwrap();
     }
@@ -770,13 +784,13 @@ mod tests {
         // Add funds to the wallet in a single note
         let value = Amount::from_u64(50000).unwrap();
         let (cb, _) = fake_compact_block(
-            sapling_activation_height(),
+            sapling_activation_height(ChainNetwork::ZEC),
             BlockHash([0; 32]),
             extfvk.clone(),
             value,
         );
         insert_into_cache(db_cache, &cb);
-        scan_cached_blocks(&network, db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&network, db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
         assert_eq!(get_balance(db_data, 0).unwrap(), value);
 
         let extsk2 = ExtendedSpendingKey::master(&[]);
@@ -794,6 +808,7 @@ mod tests {
                 Amount::from_u64(15000).unwrap(),
                 None,
                 ovk_policy,
+                ChainNetwork::ZEC
             )
             .unwrap();
 
@@ -823,13 +838,14 @@ mod tests {
 
             try_sapling_output_recovery(
                 &network,
-                sapling_activation_height(),
+                sapling_activation_height(ChainNetwork::ZEC),
                 &extfvk.fvk.ovk,
                 &output.cv,
                 &output.cmu,
                 &output.ephemeral_key,
                 &output.enc_ciphertext,
                 &output.out_ciphertext,
+                ChainNetwork::ZEC
             )
         };
 
@@ -842,14 +858,14 @@ mod tests {
         // so that the first transaction expires
         for i in 1..=22 {
             let (cb, _) = fake_compact_block(
-                sapling_activation_height() + i,
+                sapling_activation_height(ChainNetwork::ZEC) + i,
                 cb.hash(),
                 ExtendedFullViewingKey::from(&ExtendedSpendingKey::master(&[i as u8])),
                 value,
             );
             insert_into_cache(db_cache, &cb);
         }
-        scan_cached_blocks(&network, db_cache, db_data, None).unwrap();
+        scan_cached_blocks(&network, db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
 
         // Send the funds again, discarding history.
         // Neither transaction output is decryptable by the sender.

@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use subtle::{ConditionallySelectable, ConstantTimeEq, CtOption};
 use zcash_primitives::{
     consensus::{self, BlockHeight},
+    constants::{ChainNetwork},
     merkle_tree::{CommitmentTree, IncrementalWitness},
     note_encryption::try_sapling_compact_note_decryption,
     sapling::Node,
@@ -32,6 +33,7 @@ fn scan_output<P: consensus::Parameters>(
     existing_witnesses: &mut [&mut IncrementalWitness<Node>],
     block_witnesses: &mut [&mut IncrementalWitness<Node>],
     new_witnesses: &mut [&mut IncrementalWitness<Node>],
+    chain_network: ChainNetwork
 ) -> Option<WalletShieldedOutput> {
     let cmu = output.cmu().ok()?;
     let epk = output.epk().ok()?;
@@ -52,7 +54,7 @@ fn scan_output<P: consensus::Parameters>(
 
     for (account, ivk) in ivks.iter().enumerate() {
         let (note, to) =
-            match try_sapling_compact_note_decryption(params, height, ivk, &epk, &cmu, &ct) {
+            match try_sapling_compact_note_decryption(params, height, ivk, &epk, &cmu, &ct, chain_network) {
                 Some(ret) => ret,
                 None => continue,
             };
@@ -93,6 +95,7 @@ pub fn scan_block<P: consensus::Parameters>(
     nullifiers: &[(&[u8], usize)],
     tree: &mut CommitmentTree<Node>,
     existing_witnesses: &mut [&mut IncrementalWitness<Node>],
+    chain_network: ChainNetwork
 ) -> Vec<WalletTx> {
     let mut wtxs: Vec<WalletTx> = vec![];
     let ivks: Vec<_> = extfvks.iter().map(|extfvk| extfvk.fvk.vk.ivk()).collect();
@@ -165,6 +168,7 @@ pub fn scan_block<P: consensus::Parameters>(
                     existing_witnesses,
                     &mut block_witnesses,
                     &mut new_witnesses,
+                    chain_network
                 ) {
                     shielded_outputs.push(output);
                 }
@@ -195,7 +199,7 @@ mod tests {
     use rand_core::{OsRng, RngCore};
     use zcash_primitives::{
         consensus::{BlockHeight, Network},
-        constants::SPENDING_KEY_GENERATOR,
+        constants::{SPENDING_KEY_GENERATOR, ChainNetwork},
         merkle_tree::CommitmentTree,
         note_encryption::{Memo, SaplingNoteEncryption},
         primitives::Note,
@@ -253,7 +257,7 @@ mod tests {
 
         // Create a fake Note for the account
         let mut rng = OsRng;
-        let rseed = generate_random_rseed(&Network::TestNetwork, height, &mut rng);
+        let rseed = generate_random_rseed(&Network::TestNetwork, height, &mut rng, ChainNetwork::ZEC);
         let note = Note {
             g_d: to.diversifier().g_d().unwrap(),
             pk_d: to.pk_d().clone(),
@@ -329,6 +333,7 @@ mod tests {
             &[],
             &mut tree,
             &mut [],
+            ChainNetwork::ZEC
         );
         assert_eq!(txs.len(), 1);
 
@@ -368,6 +373,7 @@ mod tests {
             &[],
             &mut tree,
             &mut [],
+            ChainNetwork::ZEC
         );
         assert_eq!(txs.len(), 1);
 
@@ -403,6 +409,7 @@ mod tests {
             &[(&nf, account)],
             &mut tree,
             &mut [],
+            ChainNetwork::ZEC
         );
         assert_eq!(txs.len(), 1);
 

@@ -12,6 +12,7 @@ use rand::{rngs::OsRng, seq::SliceRandom, CryptoRng, RngCore};
 
 use crate::{
     consensus::{self, BlockHeight},
+    constants::{ChainNetwork},
     keys::OutgoingViewingKey,
     legacy::TransparentAddress,
     merkle_tree::MerklePath,
@@ -107,6 +108,7 @@ impl SaplingOutput {
         to: PaymentAddress,
         value: Amount,
         memo: Option<Memo>,
+        chain_network: ChainNetwork
     ) -> Result<Self, Error> {
         let g_d = match to.g_d() {
             Some(g_d) => g_d,
@@ -116,7 +118,7 @@ impl SaplingOutput {
             return Err(Error::InvalidAmount);
         }
 
-        let rseed = generate_random_rseed(params, height, rng);
+        let rseed = generate_random_rseed(params, height, rng, chain_network);
 
         let note = Note {
             g_d,
@@ -494,6 +496,7 @@ impl<'a, P: consensus::Parameters, R: RngCore + CryptoRng> Builder<'a, P, R> {
         to: PaymentAddress,
         value: Amount,
         memo: Option<Memo>,
+        chain_network: ChainNetwork
     ) -> Result<(), Error> {
         let output = SaplingOutput::new(
             &self.params,
@@ -503,6 +506,7 @@ impl<'a, P: consensus::Parameters, R: RngCore + CryptoRng> Builder<'a, P, R> {
             to,
             value,
             memo,
+            chain_network
         )?;
 
         self.mtx.value_balance -= value;
@@ -565,6 +569,7 @@ impl<'a, P: consensus::Parameters, R: RngCore + CryptoRng> Builder<'a, P, R> {
         mut self,
         consensus_branch_id: consensus::BranchId,
         prover: &impl TxProver,
+        chain_network: ChainNetwork
     ) -> Result<(Transaction, TransactionMetadata), Error> {
         let mut tx_metadata = TransactionMetadata::new();
 
@@ -617,7 +622,7 @@ impl<'a, P: consensus::Parameters, R: RngCore + CryptoRng> Builder<'a, P, R> {
                 return Err(Error::NoChangeAddress);
             };
 
-            self.add_sapling_output(Some(change_address.0), change_address.1, change, None)?;
+            self.add_sapling_output(Some(change_address.0), change_address.1, change, None, chain_network)?;
         }
 
         //
@@ -727,7 +732,7 @@ impl<'a, P: consensus::Parameters, R: RngCore + CryptoRng> Builder<'a, P, R> {
                         }
                     };
 
-                    let rseed = generate_random_rseed(&self.params, self.height, &mut self.rng);
+                    let rseed = generate_random_rseed(&self.params, self.height, &mut self.rng, chain_network);
 
                     (
                         payment_address,
@@ -886,6 +891,7 @@ mod tests {
 
     use crate::{
         consensus::{self, Parameters, H0, TEST_NETWORK},
+        constants::{ChainNetwork},
         legacy::TransparentAddress,
         merkle_tree::{CommitmentTree, IncrementalWitness},
         primitives::Rseed,
@@ -909,7 +915,7 @@ mod tests {
 
         let mut builder = Builder::new(TEST_NETWORK, H0);
         assert_eq!(
-            builder.add_sapling_output(Some(ovk), to, Amount::from_i64(-1).unwrap(), None),
+            builder.add_sapling_output(Some(ovk), to, Amount::from_i64(-1).unwrap(), None, ChainNetwork::ZEC),
             Err(Error::InvalidAmount)
         );
     }
@@ -923,7 +929,7 @@ mod tests {
         };
 
         let sapling_activation_height = TEST_NETWORK
-            .activation_height(NetworkUpgrade::Sapling)
+            .activation_height(NetworkUpgrade::Sapling, ChainNetwork::ZEC)
             .unwrap();
 
         // Create a builder with 0 fee, so we can construct t outputs
@@ -949,7 +955,7 @@ mod tests {
             .unwrap();
 
         let (tx, _) = builder
-            .build(consensus::BranchId::Sapling, &MockTxProver)
+            .build(consensus::BranchId::Sapling, &MockTxProver, ChainNetwork::ZEC)
             .unwrap();
         // No binding signature, because only t input and outputs
         assert!(tx.binding_sig.is_none());
@@ -985,7 +991,7 @@ mod tests {
         // Expect a binding signature error, because our inputs aren't valid, but this shows
         // that a binding signature was attempted
         assert_eq!(
-            builder.build(consensus::BranchId::Sapling, &MockTxProver),
+            builder.build(consensus::BranchId::Sapling, &MockTxProver, ChainNetwork::ZEC),
             Err(Error::BindingSig)
         );
     }
@@ -1014,7 +1020,7 @@ mod tests {
         {
             let builder = Builder::new(TEST_NETWORK, H0);
             assert_eq!(
-                builder.build(consensus::BranchId::Sapling, &MockTxProver),
+                builder.build(consensus::BranchId::Sapling, &MockTxProver, ChainNetwork::ZEC),
                 Err(Error::ChangeIsNegative(Amount::zero() - DEFAULT_FEE))
             );
         }
@@ -1028,10 +1034,10 @@ mod tests {
         {
             let mut builder = Builder::new(TEST_NETWORK, H0);
             builder
-                .add_sapling_output(ovk, to.clone(), Amount::from_u64(50000).unwrap(), None)
+                .add_sapling_output(ovk, to.clone(), Amount::from_u64(50000).unwrap(), None, ChainNetwork::ZEC)
                 .unwrap();
             assert_eq!(
-                builder.build(consensus::BranchId::Sapling, &MockTxProver),
+                builder.build(consensus::BranchId::Sapling, &MockTxProver, ChainNetwork::ZEC),
                 Err(Error::ChangeIsNegative(
                     Amount::from_i64(-50000).unwrap() - DEFAULT_FEE
                 ))
@@ -1049,7 +1055,7 @@ mod tests {
                 )
                 .unwrap();
             assert_eq!(
-                builder.build(consensus::BranchId::Sapling, &MockTxProver),
+                builder.build(consensus::BranchId::Sapling, &MockTxProver, ChainNetwork::ZEC),
                 Err(Error::ChangeIsNegative(
                     Amount::from_i64(-50000).unwrap() - DEFAULT_FEE
                 ))
@@ -1077,7 +1083,7 @@ mod tests {
                 )
                 .unwrap();
             builder
-                .add_sapling_output(ovk, to.clone(), Amount::from_u64(30000).unwrap(), None)
+                .add_sapling_output(ovk, to.clone(), Amount::from_u64(30000).unwrap(), None, ChainNetwork::ZEC)
                 .unwrap();
             builder
                 .add_transparent_output(
@@ -1086,7 +1092,7 @@ mod tests {
                 )
                 .unwrap();
             assert_eq!(
-                builder.build(consensus::BranchId::Sapling, &MockTxProver),
+                builder.build(consensus::BranchId::Sapling, &MockTxProver, ChainNetwork::ZEC),
                 Err(Error::ChangeIsNegative(Amount::from_i64(-1).unwrap()))
             );
         }
@@ -1118,7 +1124,7 @@ mod tests {
                 .add_sapling_spend(extsk, *to.diversifier(), note2, witness2.path().unwrap())
                 .unwrap();
             builder
-                .add_sapling_output(ovk, to, Amount::from_u64(30000).unwrap(), None)
+                .add_sapling_output(ovk, to, Amount::from_u64(30000).unwrap(), None, ChainNetwork::ZEC)
                 .unwrap();
             builder
                 .add_transparent_output(
@@ -1127,7 +1133,7 @@ mod tests {
                 )
                 .unwrap();
             assert_eq!(
-                builder.build(consensus::BranchId::Sapling, &MockTxProver),
+                builder.build(consensus::BranchId::Sapling, &MockTxProver, ChainNetwork::ZEC),
                 Err(Error::BindingSig)
             )
         }
