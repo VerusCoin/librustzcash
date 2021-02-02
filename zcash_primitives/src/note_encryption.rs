@@ -193,51 +193,6 @@ pub fn prf_ock(
     )
 }
 
-/// An API for encrypting Sapling notes.
-///
-/// This struct provides a safe API for encrypting Sapling notes. In particular, it
-/// enforces that fresh ephemeral keys are used for every note, and that the ciphertexts
-/// are consistent with each other.
-///
-/// Implements section 4.17.1 of the Zcash Protocol Specification.
-/// NB: the example code is only covering the pre-Canopy case.
-///
-/// # Examples
-///
-/// ```
-/// extern crate ff;
-/// extern crate rand_core;
-/// extern crate zcash_primitives;
-///
-/// use ff::Field;
-/// use rand_core::OsRng;
-/// use zcash_primitives::{
-///     keys::{OutgoingViewingKey, prf_expand},
-///     note_encryption::{Memo, SaplingNoteEncryption},
-///     primitives::{Diversifier, PaymentAddress, Rseed, ValueCommitment},
-/// };
-///
-/// let mut rng = OsRng;
-///
-/// let diversifier = Diversifier([0; 11]);
-/// let pk_d = diversifier.g_d().unwrap();
-/// let to = PaymentAddress::from_parts(diversifier, pk_d).unwrap();
-/// let ovk = Some(OutgoingViewingKey([0; 32]));
-///
-/// let value = 1000;
-/// let rcv = jubjub::Fr::random(&mut rng);
-/// let cv = ValueCommitment {
-///     value,
-///     randomness: rcv.clone(),
-/// };
-/// let rcm = jubjub::Fr::random(&mut rng);
-/// let note = to.create_note(value, Rseed::BeforeZip212(rcm)).unwrap();
-/// let cmu = note.cmu();
-///
-/// let mut enc = SaplingNoteEncryption::new(ovk, note, to, Memo::default(), &mut rng);
-/// let encCiphertext = enc.encrypt_note_plaintext();
-/// let outCiphertext = enc.encrypt_outgoing_plaintext(&cv.commitment().into(), &cmu);
-/// ```
 pub struct SaplingNoteEncryption<R: RngCore + CryptoRng> {
     epk: jubjub::SubgroupPoint,
     esk: jubjub::Fr,

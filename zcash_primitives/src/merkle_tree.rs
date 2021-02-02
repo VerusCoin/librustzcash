@@ -185,37 +185,6 @@ impl<Node: Hashable> CommitmentTree<Node> {
     }
 }
 
-/// An updatable witness to a path from a position in a particular [`CommitmentTree`].
-///
-/// Appending the same commitments in the same order to both the original
-/// [`CommitmentTree`] and this `IncrementalWitness` will result in a witness to the path
-/// from the target position to the root of the updated tree.
-///
-/// # Examples
-///
-/// ```
-/// use ff::{Field, PrimeField};
-/// use rand_core::OsRng;
-/// use zcash_primitives::{
-///     merkle_tree::{CommitmentTree, IncrementalWitness},
-///     sapling::Node,
-/// };
-///
-/// let mut rng = OsRng;
-///
-/// let mut tree = CommitmentTree::<Node>::new();
-///
-/// tree.append(Node::new(bls12_381::Scalar::random(&mut rng).to_repr()));
-/// tree.append(Node::new(bls12_381::Scalar::random(&mut rng).to_repr()));
-/// let mut witness = IncrementalWitness::from_tree(&tree);
-/// assert_eq!(witness.position(), 1);
-/// assert_eq!(tree.root(), witness.root());
-///
-/// let cmu = Node::new(bls12_381::Scalar::random(&mut rng).to_repr());
-/// tree.append(cmu);
-/// witness.append(cmu);
-/// assert_eq!(tree.root(), witness.root());
-/// ```
 #[derive(Clone)]
 pub struct IncrementalWitness<Node: Hashable> {
     tree: CommitmentTree<Node>,

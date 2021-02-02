@@ -26,24 +26,6 @@ pub struct LocalTxProver {
 }
 
 impl LocalTxProver {
-    /// Creates a `LocalTxProver` using parameters from the given local paths.
-    ///
-    /// # Examples
-    ///
-    /// ```should_panic
-    /// use std::path::Path;
-    /// use zcash_proofs::prover::LocalTxProver;
-    ///
-    /// let tx_prover = LocalTxProver::new(
-    ///     Path::new("/path/to/sapling-spend.params"),
-    ///     Path::new("/path/to/sapling-output.params"),
-    /// );
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the paths do not point to valid parameter files with
-    /// the expected hashes.
     pub fn new(spend_path: &Path, output_path: &Path) -> Self {
         let (spend_params, spend_vk, output_params, _, _) =
             load_parameters(spend_path, output_path, None);
@@ -54,21 +36,6 @@ impl LocalTxProver {
         }
     }
 
-    /// Creates a `LocalTxProver` using parameters specified as byte arrays.
-    ///
-    /// # Examples
-    ///
-    /// ```should_panic
-    /// use std::path::Path;
-    /// use zcash_proofs::prover::LocalTxProver;
-    ///
-    /// let tx_prover = LocalTxProver::from_bytes(&[0u8], &[0u8]);
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the byte arrays do not contain valid parameters with
-    /// the expected hashes.
     pub fn from_bytes(spend_param_bytes: &[u8], output_param_bytes: &[u8]) -> Self {
         let (spend_params, spend_vk, output_params, _, _) =
             parse_parameters(spend_param_bytes, output_param_bytes, None);
@@ -80,27 +47,6 @@ impl LocalTxProver {
         }
     }
 
-    /// Attempts to create a `LocalTxProver` using parameters from the default local
-    /// location.
-    ///
-    /// Returns `None` if any of the parameters cannot be found in the default local
-    /// location.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use zcash_proofs::prover::LocalTxProver;
-    ///
-    /// match LocalTxProver::with_default_location() {
-    ///     Some(tx_prover) => (),
-    ///     None => println!("Please run zcash-fetch-params or fetch-params.sh to download the parameters."),
-    /// }
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the parameters in the default local location do not
-    /// have the expected hashes.
     #[cfg(feature = "local-prover")]
     #[cfg_attr(docsrs, doc(cfg(feature = "local-prover")))]
     pub fn with_default_location() -> Option<Self> {

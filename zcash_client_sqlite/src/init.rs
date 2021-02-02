@@ -11,18 +11,6 @@ use crate::{
     error::{Error, ErrorKind},
 };
 
-/// Sets up the internal structure of the cache database.
-///
-/// # Examples
-///
-/// ```
-/// use tempfile::NamedTempFile;
-/// use zcash_client_sqlite::init::init_cache_database;
-///
-/// let data_file = NamedTempFile::new().unwrap();
-/// let db_cache = data_file.path();
-/// init_cache_database(&db_cache).unwrap();
-/// ```
 pub fn init_cache_database<P: AsRef<Path>>(db_cache: P) -> Result<(), Error> {
     let cache = Connection::open(db_cache)?;
     cache.execute(
@@ -35,18 +23,6 @@ pub fn init_cache_database<P: AsRef<Path>>(db_cache: P) -> Result<(), Error> {
     Ok(())
 }
 
-/// Sets up the internal structure of the data database.
-///
-/// # Examples
-///
-/// ```
-/// use tempfile::NamedTempFile;
-/// use zcash_client_sqlite::init::init_data_database;
-///
-/// let data_file = NamedTempFile::new().unwrap();
-/// let db_data = data_file.path();
-/// init_data_database(&db_data).unwrap();
-/// ```
 pub fn init_data_database<P: AsRef<Path>>(db_data: P) -> Result<(), Error> {
     let data = Connection::open(db_data)?;
     data.execute(
@@ -129,35 +105,6 @@ pub fn init_data_database<P: AsRef<Path>>(db_data: P) -> Result<(), Error> {
     Ok(())
 }
 
-/// Initialises the data database with the given [`ExtendedFullViewingKey`]s.
-///
-/// The [`ExtendedFullViewingKey`]s are stored internally and used by other APIs such as
-/// [`get_address`], [`scan_cached_blocks`], and [`create_to_address`]. `extfvks` **MUST**
-/// be arranged in account-order; that is, the [`ExtendedFullViewingKey`] for ZIP 32
-/// account `i` **MUST** be at `extfvks[i]`.
-///
-/// # Examples
-///
-/// ```
-/// use tempfile::NamedTempFile;
-/// use zcash_client_sqlite::init::{init_accounts_table, init_data_database};
-/// use zcash_primitives::{
-///     consensus::Network,
-///     zip32::{ExtendedFullViewingKey, ExtendedSpendingKey}
-/// };
-///
-/// let data_file = NamedTempFile::new().unwrap();
-/// let db_data = data_file.path();
-/// init_data_database(&db_data).unwrap();
-///
-/// let extsk = ExtendedSpendingKey::master(&[]);
-/// let extfvks = [ExtendedFullViewingKey::from(&extsk)];
-/// init_accounts_table(&db_data, &Network::TestNetwork, &extfvks).unwrap();
-/// ```
-///
-/// [`get_address`]: crate::query::get_address
-/// [`scan_cached_blocks`]: crate::scan::scan_cached_blocks
-/// [`create_to_address`]: crate::transact::create_to_address
 pub fn init_accounts_table<D: AsRef<Path>, P: consensus::Parameters>(
     db_data: D,
     params: &P,
@@ -193,29 +140,6 @@ pub fn init_accounts_table<D: AsRef<Path>, P: consensus::Parameters>(
     Ok(())
 }
 
-/// Initialises the data database with the given block.
-///
-/// This enables a newly-created database to be immediately-usable, without needing to
-/// synchronise historic blocks.
-///
-/// # Examples
-///
-/// ```
-/// use zcash_client_sqlite::init::init_blocks_table;
-/// use zcash_primitives::block::BlockHash;
-///
-/// // The block height.
-/// let height = 500_000;
-/// // The hash of the block header.
-/// let hash = BlockHash([0; 32]);
-/// // The nTime field from the block header.
-/// let time = 12_3456_7890;
-/// // The serialized Sapling commitment tree as of this block.
-/// // Pre-compute and hard-code, or obtain from a service.
-/// let sapling_tree = &[];
-///
-/// init_blocks_table("/path/to/data.db", height, hash, time, sapling_tree);
-/// ```
 pub fn init_blocks_table<P: AsRef<Path>>(
     db_data: P,
     height: i32,

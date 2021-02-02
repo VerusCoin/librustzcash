@@ -36,22 +36,6 @@ where
     }
 }
 
-/// Writes an [`ExtendedSpendingKey`] as a Bech32-encoded string.
-///
-/// # Examples
-///
-/// ```
-/// use zcash_primitives::{
-///     constants::testnet::{COIN_TYPE, HRP_SAPLING_EXTENDED_SPENDING_KEY},
-/// };
-/// use zcash_client_backend::{
-///     encoding::encode_extended_spending_key,
-///     keys::spending_key,
-/// };
-///
-/// let extsk = spending_key(&[0; 32][..], COIN_TYPE, 0);
-/// let encoded = encode_extended_spending_key(HRP_SAPLING_EXTENDED_SPENDING_KEY, &extsk);
-/// ```
 pub fn encode_extended_spending_key(hrp: &str, extsk: &ExtendedSpendingKey) -> String {
     bech32_encode(hrp, |w| extsk.write(w))
 }
@@ -64,24 +48,6 @@ pub fn decode_extended_spending_key(
     bech32_decode(hrp, s, |data| ExtendedSpendingKey::read(&data[..]).ok())
 }
 
-/// Writes an [`ExtendedFullViewingKey`] as a Bech32-encoded string.
-///
-/// # Examples
-///
-/// ```
-/// use zcash_primitives::{
-///     constants::testnet::{COIN_TYPE, HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY},
-/// };
-/// use zcash_client_backend::{
-///     encoding::encode_extended_full_viewing_key,
-///     keys::spending_key,
-/// };
-/// use zcash_primitives::zip32::ExtendedFullViewingKey;
-///
-/// let extsk = spending_key(&[0; 32][..], COIN_TYPE, 0);
-/// let extfvk = ExtendedFullViewingKey::from(&extsk);
-/// let encoded = encode_extended_full_viewing_key(HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY, &extfvk);
-/// ```
 pub fn encode_extended_full_viewing_key(hrp: &str, extfvk: &ExtendedFullViewingKey) -> String {
     bech32_encode(hrp, |w| extfvk.write(w))
 }
@@ -94,79 +60,10 @@ pub fn decode_extended_full_viewing_key(
     bech32_decode(hrp, s, |data| ExtendedFullViewingKey::read(&data[..]).ok())
 }
 
-/// Writes a [`PaymentAddress`] as a Bech32-encoded string.
-///
-/// # Examples
-///
-/// ```
-/// use group::Group;
-/// use jubjub::SubgroupPoint;
-/// use rand_core::SeedableRng;
-/// use rand_xorshift::XorShiftRng;
-/// use zcash_client_backend::{
-///     encoding::encode_payment_address,
-/// };
-/// use zcash_primitives::{
-///     constants::testnet::HRP_SAPLING_PAYMENT_ADDRESS,
-///     primitives::{Diversifier, PaymentAddress},
-/// };
-///
-/// let rng = &mut XorShiftRng::from_seed([
-///     0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
-///     0xbc, 0xe5,
-/// ]);
-///
-/// let pa = PaymentAddress::from_parts(
-///     Diversifier([0u8; 11]),
-///     SubgroupPoint::random(rng),
-/// )
-/// .unwrap();
-///
-/// assert_eq!(
-///     encode_payment_address(HRP_SAPLING_PAYMENT_ADDRESS, &pa),
-///     "ztestsapling1qqqqqqqqqqqqqqqqqqcguyvaw2vjk4sdyeg0lc970u659lvhqq7t0np6hlup5lusxle75ss7jnk",
-/// );
-/// ```
 pub fn encode_payment_address(hrp: &str, addr: &PaymentAddress) -> String {
     bech32_encode(hrp, |w| w.write_all(&addr.to_bytes()))
 }
 
-/// Decodes a [`PaymentAddress`] from a Bech32-encoded string.
-///
-/// # Examples
-///
-/// ```
-/// use group::Group;
-/// use jubjub::SubgroupPoint;
-/// use rand_core::SeedableRng;
-/// use rand_xorshift::XorShiftRng;
-/// use zcash_client_backend::{
-///     encoding::decode_payment_address,
-/// };
-/// use zcash_primitives::{
-///     constants::testnet::HRP_SAPLING_PAYMENT_ADDRESS,
-///     primitives::{Diversifier, PaymentAddress},
-/// };
-///
-/// let rng = &mut XorShiftRng::from_seed([
-///     0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
-///     0xbc, 0xe5,
-/// ]);
-///
-/// let pa = PaymentAddress::from_parts(
-///     Diversifier([0u8; 11]),
-///     SubgroupPoint::random(rng),
-/// )
-/// .unwrap();
-///
-/// assert_eq!(
-///     decode_payment_address(
-///         HRP_SAPLING_PAYMENT_ADDRESS,
-///         "ztestsapling1qqqqqqqqqqqqqqqqqqcguyvaw2vjk4sdyeg0lc970u659lvhqq7t0np6hlup5lusxle75ss7jnk",
-///     ),
-///     Ok(Some(pa)),
-/// );
-/// ```
 pub fn decode_payment_address(hrp: &str, s: &str) -> Result<Option<PaymentAddress>, Error> {
     bech32_decode(hrp, s, |data| {
         if data.len() != 43 {
@@ -179,37 +76,6 @@ pub fn decode_payment_address(hrp: &str, s: &str) -> Result<Option<PaymentAddres
     })
 }
 
-/// Writes a [`TransparentAddress`] as a Base58Check-encoded string.
-///
-/// # Examples
-///
-/// ```
-/// use zcash_client_backend::{
-///     encoding::encode_transparent_address,
-/// };
-/// use zcash_primitives::{
-///     constants::testnet::{B58_PUBKEY_ADDRESS_PREFIX, B58_SCRIPT_ADDRESS_PREFIX},
-///     legacy::TransparentAddress,
-/// };
-///
-/// assert_eq!(
-///     encode_transparent_address(
-///         &B58_PUBKEY_ADDRESS_PREFIX,
-///         &B58_SCRIPT_ADDRESS_PREFIX,
-///         &TransparentAddress::PublicKey([0; 20]),
-///     ),
-///     "tm9iMLAuYMzJ6jtFLcA7rzUmfreGuKvr7Ma",
-/// );
-///
-/// assert_eq!(
-///     encode_transparent_address(
-///         &B58_PUBKEY_ADDRESS_PREFIX,
-///         &B58_SCRIPT_ADDRESS_PREFIX,
-///         &TransparentAddress::Script([0; 20]),
-///     ),
-///     "t26YoyZ1iPgiMEWL4zGUm74eVWfhyDMXzY2",
-/// );
-/// ```
 pub fn encode_transparent_address(
     pubkey_version: &[u8],
     script_version: &[u8],
@@ -232,37 +98,6 @@ pub fn encode_transparent_address(
     bs58::encode(decoded).with_check().into_string()
 }
 
-/// Decodes a [`TransparentAddress`] from a Base58Check-encoded string.
-///
-/// # Examples
-///
-/// ```
-/// use zcash_primitives::{
-///     constants::testnet::{B58_PUBKEY_ADDRESS_PREFIX, B58_SCRIPT_ADDRESS_PREFIX},
-/// };
-/// use zcash_client_backend::{
-///     encoding::decode_transparent_address,
-/// };
-/// use zcash_primitives::legacy::TransparentAddress;
-///
-/// assert_eq!(
-///     decode_transparent_address(
-///         &B58_PUBKEY_ADDRESS_PREFIX,
-///         &B58_SCRIPT_ADDRESS_PREFIX,
-///         "tm9iMLAuYMzJ6jtFLcA7rzUmfreGuKvr7Ma",
-///     ),
-///     Ok(Some(TransparentAddress::PublicKey([0; 20]))),
-/// );
-///
-/// assert_eq!(
-///     decode_transparent_address(
-///         &B58_PUBKEY_ADDRESS_PREFIX,
-///         &B58_SCRIPT_ADDRESS_PREFIX,
-///         "t26YoyZ1iPgiMEWL4zGUm74eVWfhyDMXzY2",
-///     ),
-///     Ok(Some(TransparentAddress::Script([0; 20]))),
-/// );
-/// ```
 pub fn decode_transparent_address(
     pubkey_version: &[u8],
     script_version: &[u8],

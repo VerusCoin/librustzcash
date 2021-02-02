@@ -9,15 +9,6 @@ use crate::{
     get_target_and_anchor_heights,
 };
 
-/// Returns the address for the account.
-///
-/// # Examples
-///
-/// ```
-/// use zcash_client_sqlite::query::get_address;
-///
-/// let addr = get_address("/path/to/data.db", 0);
-/// ```
 pub fn get_address<P: AsRef<Path>>(db_data: P, account: u32) -> Result<String, Error> {
     let data = Connection::open(db_data)?;
 
@@ -31,21 +22,6 @@ pub fn get_address<P: AsRef<Path>>(db_data: P, account: u32) -> Result<String, E
     Ok(addr)
 }
 
-/// Returns the balance for the account, including all mined unspent notes that we know
-/// about.
-///
-/// WARNING: This balance is potentially unreliable, as mined notes may become unmined due
-/// to chain reorgs. You should generally not show this balance to users without some
-/// caveat. Use [`get_verified_balance`] where you need a more reliable indication of the
-/// wallet balance.
-///
-/// # Examples
-///
-/// ```
-/// use zcash_client_sqlite::query::get_balance;
-///
-/// let addr = get_balance("/path/to/data.db", 0);
-/// ```
 pub fn get_balance<P: AsRef<Path>>(db_data: P, account: u32) -> Result<Amount, Error> {
     let data = Connection::open(db_data)?;
 
@@ -65,16 +41,6 @@ pub fn get_balance<P: AsRef<Path>>(db_data: P, account: u32) -> Result<Amount, E
     }
 }
 
-/// Returns the verified balance for the account, which ignores notes that have been
-/// received too recently and are not yet deemed spendable.
-///
-/// # Examples
-///
-/// ```
-/// use zcash_client_sqlite::query::get_verified_balance;
-///
-/// let addr = get_verified_balance("/path/to/data.db", 0);
-/// ```
 pub fn get_verified_balance<P: AsRef<Path>>(db_data: P, account: u32) -> Result<Amount, Error> {
     let data = Connection::open(db_data)?;
 
@@ -96,17 +62,6 @@ pub fn get_verified_balance<P: AsRef<Path>>(db_data: P, account: u32) -> Result<
     }
 }
 
-/// Returns the memo for a received note, if it is known and a valid UTF-8 string.
-///
-/// The note is identified by its row index in the `received_notes` table within the data
-/// database.
-///
-/// # Examples
-///
-/// ```
-/// use zcash_client_sqlite::query::get_received_memo_as_utf8;
-///
-/// let memo = get_received_memo_as_utf8("/path/to/data.db", 27);
 pub fn get_received_memo_as_utf8<P: AsRef<Path>>(
     db_data: P,
     id_note: i64,
@@ -130,17 +85,6 @@ pub fn get_received_memo_as_utf8<P: AsRef<Path>>(
     }
 }
 
-/// Returns the memo for a sent note, if it is known and a valid UTF-8 string.
-///
-/// The note is identified by its row index in the `sent_notes` table within the data
-/// database.
-///
-/// # Examples
-///
-/// ```
-/// use zcash_client_sqlite::query::get_sent_memo_as_utf8;
-///
-/// let memo = get_sent_memo_as_utf8("/path/to/data.db", 12);
 pub fn get_sent_memo_as_utf8<P: AsRef<Path>>(
     db_data: P,
     id_note: i64,
