@@ -145,6 +145,13 @@ pub trait Parameters: Clone {
     /// if an activation height has been set.
     fn activation_height(&self, nu: NetworkUpgrade, chain: constants::ChainNetwork) -> Option<BlockHeight>;
 
+    /// Returns the coin type for the network to which this Parameters value applies.
+    fn coin_type(&self, chain: constants::ChainNetwork) -> u32;
+
+    /// Returns the human-readable prefix for Sapling extended 
+    /// spending keys for the network to which this Parameters value applies.
+    fn hrp_sapling_extended_spending_key(&self, chain: constants::ChainNetwork) -> &str;
+
     /// Returns the human-readable prefix for Sapling extended full
     /// viewing keys for the network to which this Parameters value applies.
     fn hrp_sapling_extended_full_viewing_key(&self, chain: constants::ChainNetwork) -> &str;
@@ -232,6 +239,20 @@ impl Parameters for MainNetwork {
             NetworkUpgrade::Canopy => self.activation_height_canopy(chain),
             #[cfg(feature = "zfuture")]
             NetworkUpgrade::ZFuture => self.activation_height_zfuture(chain),
+        }
+    }
+
+    fn coin_type(&self, chain: constants::ChainNetwork) -> u32 {
+        match chain {
+            constants::ChainNetwork::VRSC => constants::vrsc::mainnet::COIN_TYPE,
+            constants::ChainNetwork::ZEC => constants::zec::mainnet::COIN_TYPE
+        }
+    }
+
+    fn hrp_sapling_extended_spending_key(&self, chain: constants::ChainNetwork) -> &str {
+        match chain {
+            constants::ChainNetwork::VRSC => constants::vrsc::mainnet::HRP_SAPLING_EXTENDED_SPENDING_KEY,
+            constants::ChainNetwork::ZEC => constants::zec::mainnet::HRP_SAPLING_EXTENDED_SPENDING_KEY
         }
     }
 
@@ -331,6 +352,20 @@ impl Parameters for TestNetwork {
         }
     }
 
+    fn coin_type(&self, chain: constants::ChainNetwork) -> u32 {
+        match chain {
+            constants::ChainNetwork::VRSC => constants::vrsc::testnet::COIN_TYPE,
+            constants::ChainNetwork::ZEC => constants::zec::testnet::COIN_TYPE
+        }
+    }
+
+    fn hrp_sapling_extended_spending_key(&self, chain: constants::ChainNetwork) -> &str {
+        match chain {
+            constants::ChainNetwork::VRSC => constants::vrsc::testnet::HRP_SAPLING_EXTENDED_SPENDING_KEY,
+            constants::ChainNetwork::ZEC => constants::zec::testnet::HRP_SAPLING_EXTENDED_SPENDING_KEY
+        }
+    }
+
     fn hrp_sapling_extended_full_viewing_key(&self, chain: constants::ChainNetwork) -> &str {
         match chain {
             constants::ChainNetwork::VRSC => constants::vrsc::testnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY,
@@ -413,6 +448,20 @@ impl Parameters for Network {
         match self {
             Network::MainNetwork => MAIN_NETWORK.activation_height(nu, chain),
             Network::TestNetwork => TEST_NETWORK.activation_height(nu, chain),
+        }
+    }
+
+    fn coin_type(&self, chain: constants::ChainNetwork) -> u32 {
+        match self {
+            Network::MainNetwork => MAIN_NETWORK.coin_type(chain),
+            Network::TestNetwork => TEST_NETWORK.coin_type(chain),
+        }
+    }
+    
+    fn hrp_sapling_extended_spending_key(&self, chain: constants::ChainNetwork) -> &str {
+        match self {
+            Network::MainNetwork => MAIN_NETWORK.hrp_sapling_extended_spending_key(chain),
+            Network::TestNetwork => TEST_NETWORK.hrp_sapling_extended_spending_key(chain),
         }
     }
 
