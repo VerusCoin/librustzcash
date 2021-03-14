@@ -30,6 +30,7 @@ use std::cmp;
 use zcash_primitives::{
     consensus::{self, BlockHeight},
     zip32::ExtendedFullViewingKey,
+    constants::{ChainNetwork}
 };
 
 use zcash_client_backend::encoding::encode_payment_address;
@@ -46,9 +47,10 @@ const ANCHOR_OFFSET: u32 = 10;
 fn address_from_extfvk<P: consensus::Parameters>(
     params: &P,
     extfvk: &ExtendedFullViewingKey,
+    chain_network: ChainNetwork
 ) -> String {
     let addr = extfvk.default_address().unwrap().1;
-    encode_payment_address(params.hrp_sapling_payment_address(), &addr)
+    encode_payment_address(params.hrp_sapling_payment_address(chain_network), &addr)
 }
 
 /// Determines the target height for a transaction, and the height from which to

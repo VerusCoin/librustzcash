@@ -1,6 +1,6 @@
 //! Structs for handling supported address types.
 
-use zcash_primitives::{consensus, legacy::TransparentAddress, primitives::PaymentAddress};
+use zcash_primitives::{consensus, legacy::TransparentAddress, primitives::PaymentAddress, constants::{ChainNetwork}};
 
 use crate::encoding::{
     decode_payment_address, decode_transparent_address, encode_payment_address,
@@ -27,12 +27,12 @@ impl From<TransparentAddress> for RecipientAddress {
 }
 
 impl RecipientAddress {
-    pub fn decode<P: consensus::Parameters>(params: &P, s: &str) -> Option<Self> {
-        if let Ok(Some(pa)) = decode_payment_address(params.hrp_sapling_payment_address(), s) {
+    pub fn decode<P: consensus::Parameters>(params: &P, s: &str, chain_network: ChainNetwork) -> Option<Self> {
+        if let Ok(Some(pa)) = decode_payment_address(params.hrp_sapling_payment_address(chain_network), s) {
             Some(pa.into())
         } else if let Ok(Some(addr)) = decode_transparent_address(
-            &params.b58_pubkey_address_prefix(),
-            &params.b58_script_address_prefix(),
+            params.b58_pubkey_address_prefix(chain_network),
+            params.b58_script_address_prefix(chain_network),
             s,
         ) {
             Some(addr.into())
@@ -41,14 +41,14 @@ impl RecipientAddress {
         }
     }
 
-    pub fn encode<P: consensus::Parameters>(&self, params: &P) -> String {
+    pub fn encode<P: consensus::Parameters>(&self, params: &P, chain_network: ChainNetwork) -> String {
         match self {
             RecipientAddress::Shielded(pa) => {
-                encode_payment_address(params.hrp_sapling_payment_address(), pa)
+                encode_payment_address(params.hrp_sapling_payment_address(chain_network), pa)
             }
             RecipientAddress::Transparent(addr) => encode_transparent_address(
-                &params.b58_pubkey_address_prefix(),
-                &params.b58_script_address_prefix(),
+                params.b58_pubkey_address_prefix(chain_network),
+                params.b58_script_address_prefix(chain_network),
                 addr,
             ),
         }

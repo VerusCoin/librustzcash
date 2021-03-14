@@ -12,7 +12,7 @@ use zcash_primitives::zip32::{ChildIndex, ExtendedSpendingKey};
 /// # Examples
 ///
 /// ```
-/// use zcash_primitives::{constants::testnet::COIN_TYPE};
+/// use zcash_primitives::{constants::zec::testnet::COIN_TYPE};
 /// use zcash_client_backend::{keys::spending_key};
 ///
 /// let extsk = spending_key(&[0; 32][..], COIN_TYPE, 0);

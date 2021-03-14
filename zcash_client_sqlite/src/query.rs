@@ -170,6 +170,7 @@ mod tests {
     use zcash_primitives::{
         transaction::components::Amount,
         zip32::{ExtendedFullViewingKey, ExtendedSpendingKey},
+        constants::{ChainNetwork}
     };
 
     use super::{get_address, get_balance, get_verified_balance};
@@ -188,7 +189,7 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvks = [ExtendedFullViewingKey::from(&extsk)];
-        init_accounts_table(&db_data, &tests::network(), &extfvks).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &extfvks, ChainNetwork::ZEC).unwrap();
 
         // The account should be empty
         assert_eq!(get_balance(db_data, 0).unwrap(), Amount::zero());

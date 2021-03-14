@@ -89,7 +89,7 @@ struct SelectedNoteRow {
 /// ```
 /// use zcash_primitives::{
 ///     consensus::{self, Network},
-///     constants::testnet::COIN_TYPE,
+///     constants::zec::testnet::COIN_TYPE,
 ///     transaction::components::Amount
 /// };
 /// use zcash_proofs::prover::LocalTxProver;
@@ -145,7 +145,7 @@ pub fn create_to_address<DB: AsRef<Path>, P: consensus::Parameters>(
         .exists(&[
             account.to_sql()?,
             encode_extended_full_viewing_key(
-                params.hrp_sapling_extended_full_viewing_key(),
+                params.hrp_sapling_extended_full_viewing_key(chain_network),
                 &extfvk,
             )
             .to_sql()?,
@@ -332,7 +332,7 @@ pub fn create_to_address<DB: AsRef<Path>, P: consensus::Parameters>(
 
     // Save the sent note in the database.
     // TODO: Decide how to save transparent output information.
-    let to_str = to.encode(params);
+    let to_str = to.encode(params, chain_network);
     if let Some(memo) = memo {
         let mut stmt_insert_sent_note = data.prepare(
             "INSERT INTO sent_notes (tx, output_index, from_account, address, value, memo)
@@ -414,7 +414,7 @@ mod tests {
             ExtendedFullViewingKey::from(&extsk0),
             ExtendedFullViewingKey::from(&extsk1),
         ];
-        init_accounts_table(&db_data, &tests::network(), &extfvks).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &extfvks, ChainNetwork::ZEC).unwrap();
         let to = extsk0.default_address().unwrap().1.into();
 
         // Invalid extsk for the given account should cause an error
@@ -459,7 +459,7 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvks = [ExtendedFullViewingKey::from(&extsk)];
-        init_accounts_table(&db_data, &tests::network(), &extfvks).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &extfvks, ChainNetwork::ZEC).unwrap();
         let to = extsk.default_address().unwrap().1.into();
 
         // We cannot do anything if we aren't synchronised
@@ -490,7 +490,7 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvks = [ExtendedFullViewingKey::from(&extsk)];
-        init_accounts_table(&db_data, &tests::network(), &extfvks).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &extfvks, ChainNetwork::ZEC).unwrap();
         let to = extsk.default_address().unwrap().1.into();
 
         // Account balance should be zero
@@ -530,7 +530,7 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvk = ExtendedFullViewingKey::from(&extsk);
-        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()]).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()], ChainNetwork::ZEC).unwrap();
 
         // Add funds to the wallet in a single note
         let value = Amount::from_u64(50000).unwrap();
@@ -655,7 +655,7 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvk = ExtendedFullViewingKey::from(&extsk);
-        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()]).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()], ChainNetwork::ZEC).unwrap();
 
         // Add funds to the wallet in a single note
         let value = Amount::from_u64(50000).unwrap();
@@ -779,7 +779,7 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvk = ExtendedFullViewingKey::from(&extsk);
-        init_accounts_table(&db_data, &network, &[extfvk.clone()]).unwrap();
+        init_accounts_table(&db_data, &network, &[extfvk.clone()], ChainNetwork::ZEC).unwrap();
 
         // Add funds to the wallet in a single note
         let value = Amount::from_u64(50000).unwrap();

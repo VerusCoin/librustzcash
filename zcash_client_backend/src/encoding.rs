@@ -42,7 +42,7 @@ where
 ///
 /// ```
 /// use zcash_primitives::{
-///     constants::testnet::{COIN_TYPE, HRP_SAPLING_EXTENDED_SPENDING_KEY},
+///     constants::zec::testnet::{COIN_TYPE, HRP_SAPLING_EXTENDED_SPENDING_KEY},
 /// };
 /// use zcash_client_backend::{
 ///     encoding::encode_extended_spending_key,
@@ -70,7 +70,7 @@ pub fn decode_extended_spending_key(
 ///
 /// ```
 /// use zcash_primitives::{
-///     constants::testnet::{COIN_TYPE, HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY},
+///     constants::zec::testnet::{COIN_TYPE, HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY},
 /// };
 /// use zcash_client_backend::{
 ///     encoding::encode_extended_full_viewing_key,
@@ -107,7 +107,7 @@ pub fn decode_extended_full_viewing_key(
 ///     encoding::encode_payment_address,
 /// };
 /// use zcash_primitives::{
-///     constants::testnet::HRP_SAPLING_PAYMENT_ADDRESS,
+///     constants::zec::testnet::HRP_SAPLING_PAYMENT_ADDRESS,
 ///     primitives::{Diversifier, PaymentAddress},
 /// };
 ///
@@ -144,7 +144,7 @@ pub fn encode_payment_address(hrp: &str, addr: &PaymentAddress) -> String {
 ///     encoding::decode_payment_address,
 /// };
 /// use zcash_primitives::{
-///     constants::testnet::HRP_SAPLING_PAYMENT_ADDRESS,
+///     constants::zec::testnet::HRP_SAPLING_PAYMENT_ADDRESS,
 ///     primitives::{Diversifier, PaymentAddress},
 /// };
 ///
@@ -188,7 +188,7 @@ pub fn decode_payment_address(hrp: &str, s: &str) -> Result<Option<PaymentAddres
 ///     encoding::encode_transparent_address,
 /// };
 /// use zcash_primitives::{
-///     constants::testnet::{B58_PUBKEY_ADDRESS_PREFIX, B58_SCRIPT_ADDRESS_PREFIX},
+///     constants::zec::testnet::{B58_PUBKEY_ADDRESS_PREFIX, B58_SCRIPT_ADDRESS_PREFIX},
 ///     legacy::TransparentAddress,
 /// };
 ///
@@ -238,7 +238,7 @@ pub fn encode_transparent_address(
 ///
 /// ```
 /// use zcash_primitives::{
-///     constants::testnet::{B58_PUBKEY_ADDRESS_PREFIX, B58_SCRIPT_ADDRESS_PREFIX},
+///     constants::zec::testnet::{B58_PUBKEY_ADDRESS_PREFIX, B58_SCRIPT_ADDRESS_PREFIX},
 /// };
 /// use zcash_client_backend::{
 ///     encoding::decode_transparent_address,
@@ -310,14 +310,14 @@ mod tests {
 
         assert_eq!(
             encode_extended_spending_key(
-                constants::mainnet::HRP_SAPLING_EXTENDED_SPENDING_KEY,
+                constants::zec::mainnet::HRP_SAPLING_EXTENDED_SPENDING_KEY,
                 &extsk
             ),
             encoded_main
         );
         assert_eq!(
             decode_extended_spending_key(
-                constants::mainnet::HRP_SAPLING_EXTENDED_SPENDING_KEY,
+                constants::zec::mainnet::HRP_SAPLING_EXTENDED_SPENDING_KEY,
                 encoded_main
             )
             .unwrap(),
@@ -326,14 +326,14 @@ mod tests {
 
         assert_eq!(
             encode_extended_spending_key(
-                constants::testnet::HRP_SAPLING_EXTENDED_SPENDING_KEY,
+                constants::zec::testnet::HRP_SAPLING_EXTENDED_SPENDING_KEY,
                 &extsk
             ),
             encoded_test
         );
         assert_eq!(
             decode_extended_spending_key(
-                constants::testnet::HRP_SAPLING_EXTENDED_SPENDING_KEY,
+                constants::zec::testnet::HRP_SAPLING_EXTENDED_SPENDING_KEY,
                 encoded_test
             )
             .unwrap(),
@@ -350,14 +350,14 @@ mod tests {
 
         assert_eq!(
             encode_extended_full_viewing_key(
-                constants::mainnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY,
+                constants::zec::mainnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY,
                 &extfvk
             ),
             encoded_main
         );
         assert_eq!(
             decode_extended_full_viewing_key(
-                constants::mainnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY,
+                constants::zec::mainnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY,
                 encoded_main
             )
             .unwrap(),
@@ -366,14 +366,14 @@ mod tests {
 
         assert_eq!(
             encode_extended_full_viewing_key(
-                constants::testnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY,
+                constants::zec::testnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY,
                 &extfvk
             ),
             encoded_test
         );
         assert_eq!(
             decode_extended_full_viewing_key(
-                constants::testnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY,
+                constants::zec::testnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY,
                 encoded_test
             )
             .unwrap(),
@@ -398,12 +398,12 @@ mod tests {
             "ztestsapling1qqqqqqqqqqqqqqqqqqcguyvaw2vjk4sdyeg0lc970u659lvhqq7t0np6hlup5lusxle75ss7jnk";
 
         assert_eq!(
-            encode_payment_address(constants::mainnet::HRP_SAPLING_PAYMENT_ADDRESS, &addr),
+            encode_payment_address(constants::zec::mainnet::HRP_SAPLING_PAYMENT_ADDRESS, &addr),
             encoded_main
         );
         assert_eq!(
             decode_payment_address(
-                constants::mainnet::HRP_SAPLING_PAYMENT_ADDRESS,
+                constants::zec::mainnet::HRP_SAPLING_PAYMENT_ADDRESS,
                 encoded_main
             )
             .unwrap(),
@@ -411,12 +411,12 @@ mod tests {
         );
 
         assert_eq!(
-            encode_payment_address(constants::testnet::HRP_SAPLING_PAYMENT_ADDRESS, &addr),
+            encode_payment_address(constants::zec::testnet::HRP_SAPLING_PAYMENT_ADDRESS, &addr),
             encoded_test
         );
         assert_eq!(
             decode_payment_address(
-                constants::testnet::HRP_SAPLING_PAYMENT_ADDRESS,
+                constants::zec::testnet::HRP_SAPLING_PAYMENT_ADDRESS,
                 encoded_test
             )
             .unwrap(),
@@ -436,11 +436,11 @@ mod tests {
                 .unwrap();
 
         let encoded_main =
-            encode_payment_address(constants::mainnet::HRP_SAPLING_PAYMENT_ADDRESS, &addr);
+            encode_payment_address(constants::zec::mainnet::HRP_SAPLING_PAYMENT_ADDRESS, &addr);
 
         assert_eq!(
             decode_payment_address(
-                constants::mainnet::HRP_SAPLING_PAYMENT_ADDRESS,
+                constants::zec::mainnet::HRP_SAPLING_PAYMENT_ADDRESS,
                 &encoded_main
             )
             .unwrap(),

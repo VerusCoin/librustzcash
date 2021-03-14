@@ -4,7 +4,7 @@ use rusqlite::{types::ToSql, Connection, NO_PARAMS};
 use std::path::Path;
 use zcash_client_backend::encoding::encode_extended_full_viewing_key;
 
-use zcash_primitives::{block::BlockHash, consensus, zip32::ExtendedFullViewingKey};
+use zcash_primitives::{block::BlockHash, consensus, zip32::ExtendedFullViewingKey, constants::{ChainNetwork}};
 
 use crate::{
     address_from_extfvk,
@@ -162,6 +162,7 @@ pub fn init_accounts_table<D: AsRef<Path>, P: consensus::Parameters>(
     db_data: D,
     params: &P,
     extfvks: &[ExtendedFullViewingKey],
+    chain_network: ChainNetwork
 ) -> Result<(), Error> {
     let data = Connection::open(db_data)?;
 
@@ -173,9 +174,9 @@ pub fn init_accounts_table<D: AsRef<Path>, P: consensus::Parameters>(
     // Insert accounts atomically
     data.execute("BEGIN IMMEDIATE", NO_PARAMS)?;
     for (account, extfvk) in extfvks.iter().enumerate() {
-        let address = address_from_extfvk(params, extfvk);
+        let address = address_from_extfvk(params, extfvk, chain_network);
         let extfvk = encode_extended_full_viewing_key(
-            params.hrp_sapling_extended_full_viewing_key(),
+            params.hrp_sapling_extended_full_viewing_key(chain_network),
             extfvk,
         );
         data.execute(
@@ -252,6 +253,7 @@ mod tests {
         block::BlockHash,
         consensus::Parameters,
         zip32::{ExtendedFullViewingKey, ExtendedSpendingKey},
+        constants::{ChainNetwork}
     };
 
     use super::{init_accounts_table, init_blocks_table, init_data_database};
@@ -264,18 +266,18 @@ mod tests {
         init_data_database(&db_data).unwrap();
 
         // We can call the function as many times as we want with no data
-        init_accounts_table(&db_data, &tests::network(), &[]).unwrap();
-        init_accounts_table(&db_data, &tests::network(), &[]).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &[], ChainNetwork::ZEC).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &[], ChainNetwork::ZEC).unwrap();
 
         // First call with data should initialise the accounts table
         let extfvks = [ExtendedFullViewingKey::from(&ExtendedSpendingKey::master(
             &[],
         ))];
-        init_accounts_table(&db_data, &tests::network(), &extfvks).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &extfvks, ChainNetwork::ZEC).unwrap();
 
         // Subsequent calls should return an error
-        init_accounts_table(&db_data, &tests::network(), &[]).unwrap_err();
-        init_accounts_table(&db_data, &tests::network(), &extfvks).unwrap_err();
+        init_accounts_table(&db_data, &tests::network(), &[], ChainNetwork::ZEC).unwrap_err();
+        init_accounts_table(&db_data, &tests::network(), &extfvks, ChainNetwork::ZEC).unwrap_err();
     }
 
     #[test]
@@ -300,12 +302,12 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvks = [ExtendedFullViewingKey::from(&extsk)];
-        init_accounts_table(&db_data, &tests::network(), &extfvks).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &extfvks, ChainNetwork::ZEC).unwrap();
 
         // The account's address should be in the data DB
         let addr = get_address(&db_data, 0).unwrap();
         let pa =
-            decode_payment_address(tests::network().hrp_sapling_payment_address(), &addr).unwrap();
+            decode_payment_address(tests::network().hrp_sapling_payment_address(ChainNetwork::ZEC), &addr).unwrap();
         assert_eq!(pa.unwrap(), extsk.default_address().unwrap().1);
     }
 }

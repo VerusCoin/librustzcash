@@ -277,7 +277,7 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvk = ExtendedFullViewingKey::from(&extsk);
-        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()]).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()], ChainNetwork::ZEC).unwrap();
 
         // Empty chain should be valid
         validate_combined_chain(tests::network(), db_cache, db_data, ChainNetwork::ZEC).unwrap();
@@ -332,7 +332,7 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvk = ExtendedFullViewingKey::from(&extsk);
-        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()]).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()], ChainNetwork::ZEC).unwrap();
 
         // Create some fake CompactBlocks
         let (cb, _) = fake_compact_block(
@@ -397,7 +397,7 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvk = ExtendedFullViewingKey::from(&extsk);
-        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()]).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()], ChainNetwork::ZEC).unwrap();
 
         // Create some fake CompactBlocks
         let (cb, _) = fake_compact_block(
@@ -462,7 +462,7 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvk = ExtendedFullViewingKey::from(&extsk);
-        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()]).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()], ChainNetwork::ZEC).unwrap();
 
         // Account balance should be zero
         assert_eq!(get_balance(db_data, 0).unwrap(), Amount::zero());

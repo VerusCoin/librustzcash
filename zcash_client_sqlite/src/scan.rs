@@ -106,7 +106,7 @@ pub fn scan_cached_blocks<Params: consensus::Parameters, P: AsRef<Path>, Q: AsRe
     let extfvks = stmt_fetch_accounts.query_map(NO_PARAMS, |row| {
         row.get(0).map(|extfvk: String| {
             decode_extended_full_viewing_key(
-                params.hrp_sapling_extended_full_viewing_key(),
+                params.hrp_sapling_extended_full_viewing_key(chain_network),
                 &extfvk,
             )
         })
@@ -385,7 +385,7 @@ pub fn decrypt_and_store_transaction<D: AsRef<Path>, P: consensus::Parameters>(
     let extfvks = stmt_fetch_accounts.query_map(NO_PARAMS, |row| {
         row.get(0).map(|extfvk: String| {
             decode_extended_full_viewing_key(
-                params.hrp_sapling_extended_full_viewing_key(),
+                params.hrp_sapling_extended_full_viewing_key(chain_network),
                 &extfvk,
             )
         })
@@ -480,7 +480,7 @@ pub fn decrypt_and_store_transaction<D: AsRef<Path>, P: consensus::Parameters>(
         let value = output.note.value as i64;
 
         if output.outgoing {
-            let to_str = RecipientAddress::from(output.to).encode(params);
+            let to_str = RecipientAddress::from(output.to).encode(params, chain_network);
 
             // Try updating an existing sent note.
             if stmt_update_sent_note.execute(&[
@@ -568,7 +568,7 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvk = ExtendedFullViewingKey::from(&extsk);
-        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()]).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()], ChainNetwork::ZEC).unwrap();
 
         // Create a block with height SAPLING_ACTIVATION_HEIGHT
         let value = Amount::from_u64(50000).unwrap();
@@ -630,7 +630,7 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvk = ExtendedFullViewingKey::from(&extsk);
-        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()]).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()], ChainNetwork::ZEC).unwrap();
 
         // Account balance should be zero
         assert_eq!(get_balance(db_data, 0).unwrap(), Amount::zero());
@@ -677,7 +677,7 @@ mod tests {
         // Add an account to the wallet
         let extsk = ExtendedSpendingKey::master(&[]);
         let extfvk = ExtendedFullViewingKey::from(&extsk);
-        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()]).unwrap();
+        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()], ChainNetwork::ZEC).unwrap();
 
         // Account balance should be zero
         assert_eq!(get_balance(db_data, 0).unwrap(), Amount::zero());

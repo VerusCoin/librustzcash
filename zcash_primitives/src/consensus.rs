@@ -147,19 +147,19 @@ pub trait Parameters: Clone {
 
     /// Returns the human-readable prefix for Sapling extended full
     /// viewing keys for the network to which this Parameters value applies.
-    fn hrp_sapling_extended_full_viewing_key(&self) -> &str;
+    fn hrp_sapling_extended_full_viewing_key(&self, chain: constants::ChainNetwork) -> &str;
 
     /// Returns the human-readable prefix for Sapling payment addresses
     /// viewing keys for the network to which this Parameters value applies.
-    fn hrp_sapling_payment_address(&self) -> &str;
+    fn hrp_sapling_payment_address(&self, chain: constants::ChainNetwork) -> &str;
 
     /// Returns the human-readable prefix for transparent pay-to-public-key-hash
     /// payment addresses for the network to which this Parameters value applies.
-    fn b58_pubkey_address_prefix(&self) -> [u8; 2];
+    fn b58_pubkey_address_prefix(&self, chain: constants::ChainNetwork) -> &[u8];
 
     /// Returns the human-readable prefix for transparent pay-to-script-hash
     /// payment addresses for the network to which this Parameters value applies.
-    fn b58_script_address_prefix(&self) -> [u8; 2];
+    fn b58_script_address_prefix(&self, chain: constants::ChainNetwork) -> &[u8];
 
     /// Determines whether the specified network upgrade is active as of the
     /// provided block height on the network to which this Parameters value applies.
@@ -235,20 +235,32 @@ impl Parameters for MainNetwork {
         }
     }
 
-    fn hrp_sapling_extended_full_viewing_key(&self) -> &str {
-        constants::mainnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY
+    fn hrp_sapling_extended_full_viewing_key(&self, chain: constants::ChainNetwork) -> &str {
+        match chain {
+            constants::ChainNetwork::VRSC => constants::vrsc::mainnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY,
+            constants::ChainNetwork::ZEC => constants::zec::mainnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY
+        }
     }
 
-    fn hrp_sapling_payment_address(&self) -> &str {
-        constants::mainnet::HRP_SAPLING_PAYMENT_ADDRESS
+    fn hrp_sapling_payment_address(&self, chain: constants::ChainNetwork) -> &str {
+        match chain {
+            constants::ChainNetwork::VRSC => constants::vrsc::mainnet::HRP_SAPLING_PAYMENT_ADDRESS,
+            constants::ChainNetwork::ZEC => constants::zec::mainnet::HRP_SAPLING_PAYMENT_ADDRESS
+        }
     }
 
-    fn b58_pubkey_address_prefix(&self) -> [u8; 2] {
-        constants::mainnet::B58_PUBKEY_ADDRESS_PREFIX
+    fn b58_pubkey_address_prefix(&self, chain: constants::ChainNetwork) -> &[u8] {
+        match chain {
+            constants::ChainNetwork::VRSC => &constants::vrsc::mainnet::B58_PUBKEY_ADDRESS_PREFIX,
+            constants::ChainNetwork::ZEC => &constants::zec::mainnet::B58_PUBKEY_ADDRESS_PREFIX
+        }
     }
 
-    fn b58_script_address_prefix(&self) -> [u8; 2] {
-        constants::mainnet::B58_SCRIPT_ADDRESS_PREFIX
+    fn b58_script_address_prefix(&self, chain: constants::ChainNetwork) -> &[u8] {
+        match chain {
+            constants::ChainNetwork::VRSC => &constants::vrsc::mainnet::B58_SCRIPT_ADDRESS_PREFIX,
+            constants::ChainNetwork::ZEC => &constants::zec::mainnet::B58_SCRIPT_ADDRESS_PREFIX
+        }
     }
 }
 
@@ -319,20 +331,32 @@ impl Parameters for TestNetwork {
         }
     }
 
-    fn hrp_sapling_extended_full_viewing_key(&self) -> &str {
-        constants::testnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY
+    fn hrp_sapling_extended_full_viewing_key(&self, chain: constants::ChainNetwork) -> &str {
+        match chain {
+            constants::ChainNetwork::VRSC => constants::vrsc::testnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY,
+            constants::ChainNetwork::ZEC => constants::zec::testnet::HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY
+        }
     }
 
-    fn hrp_sapling_payment_address(&self) -> &str {
-        constants::testnet::HRP_SAPLING_PAYMENT_ADDRESS
+    fn hrp_sapling_payment_address(&self, chain: constants::ChainNetwork) -> &str {
+        match chain {
+            constants::ChainNetwork::VRSC => constants::vrsc::testnet::HRP_SAPLING_PAYMENT_ADDRESS,
+            constants::ChainNetwork::ZEC => constants::zec::testnet::HRP_SAPLING_PAYMENT_ADDRESS
+        }
     }
 
-    fn b58_pubkey_address_prefix(&self) -> [u8; 2] {
-        constants::testnet::B58_PUBKEY_ADDRESS_PREFIX
+    fn b58_pubkey_address_prefix(&self, chain: constants::ChainNetwork) -> &[u8] {
+        match chain {
+            constants::ChainNetwork::VRSC => &constants::vrsc::testnet::B58_PUBKEY_ADDRESS_PREFIX,
+            constants::ChainNetwork::ZEC => &constants::zec::testnet::B58_PUBKEY_ADDRESS_PREFIX
+        }
     }
 
-    fn b58_script_address_prefix(&self) -> [u8; 2] {
-        constants::testnet::B58_SCRIPT_ADDRESS_PREFIX
+    fn b58_script_address_prefix(&self, chain: constants::ChainNetwork) -> &[u8] {
+        match chain {
+            constants::ChainNetwork::VRSC => &constants::vrsc::testnet::B58_SCRIPT_ADDRESS_PREFIX,
+            constants::ChainNetwork::ZEC => &constants::zec::testnet::B58_SCRIPT_ADDRESS_PREFIX
+        }
     }
 }
 
@@ -392,31 +416,31 @@ impl Parameters for Network {
         }
     }
 
-    fn hrp_sapling_extended_full_viewing_key(&self) -> &str {
+    fn hrp_sapling_extended_full_viewing_key(&self, chain: constants::ChainNetwork) -> &str {
         match self {
-            Network::MainNetwork => MAIN_NETWORK.hrp_sapling_extended_full_viewing_key(),
-            Network::TestNetwork => TEST_NETWORK.hrp_sapling_extended_full_viewing_key(),
+            Network::MainNetwork => MAIN_NETWORK.hrp_sapling_extended_full_viewing_key(chain),
+            Network::TestNetwork => TEST_NETWORK.hrp_sapling_extended_full_viewing_key(chain),
         }
     }
 
-    fn hrp_sapling_payment_address(&self) -> &str {
+    fn hrp_sapling_payment_address(&self, chain: constants::ChainNetwork) -> &str {
         match self {
-            Network::MainNetwork => MAIN_NETWORK.hrp_sapling_payment_address(),
-            Network::TestNetwork => TEST_NETWORK.hrp_sapling_payment_address(),
+            Network::MainNetwork => MAIN_NETWORK.hrp_sapling_payment_address(chain),
+            Network::TestNetwork => TEST_NETWORK.hrp_sapling_payment_address(chain),
         }
     }
 
-    fn b58_pubkey_address_prefix(&self) -> [u8; 2] {
+    fn b58_pubkey_address_prefix(&self, chain: constants::ChainNetwork) -> &[u8] {
         match self {
-            Network::MainNetwork => MAIN_NETWORK.b58_pubkey_address_prefix(),
-            Network::TestNetwork => TEST_NETWORK.b58_pubkey_address_prefix(),
+            Network::MainNetwork => MAIN_NETWORK.b58_pubkey_address_prefix(chain),
+            Network::TestNetwork => TEST_NETWORK.b58_pubkey_address_prefix(chain),
         }
     }
 
-    fn b58_script_address_prefix(&self) -> [u8; 2] {
+    fn b58_script_address_prefix(&self, chain: constants::ChainNetwork) -> &[u8] {
         match self {
-            Network::MainNetwork => MAIN_NETWORK.b58_script_address_prefix(),
-            Network::TestNetwork => TEST_NETWORK.b58_script_address_prefix(),
+            Network::MainNetwork => MAIN_NETWORK.b58_script_address_prefix(chain),
+            Network::TestNetwork => TEST_NETWORK.b58_script_address_prefix(chain),
         }
     }
 }
