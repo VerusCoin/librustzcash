@@ -598,13 +598,9 @@ impl<'a, P: consensus::Parameters, R: RngCore + CryptoRng> Builder<'a, P, R> {
 
         if change.is_negative() {
             return Err(Error::ChangeIsNegative(change));
-        }
-
-        //
-        // Change output
-        //
-
-        if change.is_positive() {
+        } else {
+            // Create change output
+            
             // Send change to the specified change address. If no change address
             // was set, send change to the first Sapling address given as input.
             let change_address = if let Some(change_address) = self.change_address.take() {

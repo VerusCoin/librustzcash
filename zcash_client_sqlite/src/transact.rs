@@ -371,6 +371,7 @@ mod tests {
     use rusqlite::Connection;
     use tempfile::NamedTempFile;
 
+    use zcash_client_backend::{address::RecipientAddress};
     use zcash_primitives::{
         block::BlockHash,
         consensus,
@@ -571,7 +572,7 @@ mod tests {
             test_prover(),
             (0, &extsk),
             &to,
-            Amount::from_u64(70000).unwrap(),
+            Amount::from_u64(61000).unwrap(),
             None,
             OvkPolicy::Sender,
             ChainNetwork::ZEC
@@ -604,7 +605,7 @@ mod tests {
             test_prover(),
             (0, &extsk),
             &to,
-            Amount::from_u64(70000).unwrap(),
+            Amount::from_u64(61000).unwrap(),
             None,
             OvkPolicy::Sender,
             ChainNetwork::ZEC
@@ -635,6 +636,100 @@ mod tests {
             (0, &extsk),
             &to,
             Amount::from_u64(70000).unwrap(),
+            None,
+            OvkPolicy::Sender,
+            ChainNetwork::ZEC
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn create_to_address_succeeds_to_z_address_entire_balance() {
+        let cache_file = NamedTempFile::new().unwrap();
+        let db_cache = cache_file.path();
+        init_cache_database(&db_cache).unwrap();
+
+        let data_file = NamedTempFile::new().unwrap();
+        let db_data = data_file.path();
+        init_data_database(&db_data).unwrap();
+
+        // Add an account to the wallet
+        let extsk = ExtendedSpendingKey::master(&[]);
+        let extfvk = ExtendedFullViewingKey::from(&extsk);
+        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()], ChainNetwork::ZEC).unwrap();
+
+        // Add funds to the wallet in a single note
+        let value = Amount::from_u64(71000).unwrap();
+        let (cb, _) = fake_compact_block(
+            sapling_activation_height(ChainNetwork::ZEC),
+            BlockHash([0; 32]),
+            extfvk.clone(),
+            value,
+        );
+        insert_into_cache(db_cache, &cb);
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
+
+        // Verified balance matches total balance
+        assert_eq!(get_balance(db_data, 0).unwrap(), value);
+        assert_eq!(get_verified_balance(db_data, 0).unwrap(), value);
+
+        // Spend fails because there are insufficient verified notes
+        let extsk2 = ExtendedSpendingKey::master(&[]);
+        let to = extsk2.default_address().unwrap().1.into();
+        create_to_address(
+            db_data,
+            &tests::network(),
+            consensus::BranchId::Blossom,
+            test_prover(),
+            (0, &extsk),
+            &to,
+            Amount::from_u64(61000).unwrap(),
+            None,
+            OvkPolicy::Sender,
+            ChainNetwork::ZEC
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn create_to_address_succeeds_to_transparent_address_entire_balance() {
+        let cache_file = NamedTempFile::new().unwrap();
+        let db_cache = cache_file.path();
+        init_cache_database(&db_cache).unwrap();
+
+        let data_file = NamedTempFile::new().unwrap();
+        let db_data = data_file.path();
+        init_data_database(&db_data).unwrap();
+
+        // Add an account to the wallet
+        let extsk = ExtendedSpendingKey::master(&[]);
+        let extfvk = ExtendedFullViewingKey::from(&extsk);
+        init_accounts_table(&db_data, &tests::network(), &[extfvk.clone()], ChainNetwork::ZEC).unwrap();
+
+        // Add funds to the wallet in a single note
+        let value = Amount::from_u64(71000).unwrap();
+        let (cb, _) = fake_compact_block(
+            sapling_activation_height(ChainNetwork::ZEC),
+            BlockHash([0; 32]),
+            extfvk.clone(),
+            value,
+        );
+        insert_into_cache(db_cache, &cb);
+        scan_cached_blocks(&tests::network(), db_cache, db_data, None, ChainNetwork::ZEC).unwrap();
+
+        // Verified balance matches total balance
+        assert_eq!(get_balance(db_data, 0).unwrap(), value);
+        assert_eq!(get_verified_balance(db_data, 0).unwrap(), value);
+
+        let to = RecipientAddress::decode(&consensus::TEST_NETWORK, "RVjvbZuqSGLGDm1B9BFkbHWySPKEx4tfjQ", ChainNetwork::VRSC).unwrap();
+        create_to_address(
+            db_data,
+            &tests::network(),
+            consensus::BranchId::Blossom,
+            test_prover(),
+            (0, &extsk),
+            &to,
+            Amount::from_u64(61000).unwrap(),
             None,
             OvkPolicy::Sender,
             ChainNetwork::ZEC
