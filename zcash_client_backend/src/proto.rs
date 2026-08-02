@@ -263,10 +263,10 @@ impl service::TreeState {
     pub fn sapling_tree(
         &self,
     ) -> io::Result<CommitmentTree<Node, { sapling::NOTE_COMMITMENT_TREE_DEPTH }>> {
-        if self.sapling_tree.is_empty() {
+        if self.tree.is_empty() {
             Ok(CommitmentTree::empty())
         } else {
-            let sapling_tree_bytes = hex::decode(&self.sapling_tree).map_err(|e| {
+            let sapling_tree_bytes = hex::decode(&self.tree).map_err(|e| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
                     format!("Hex decoding of Sapling tree bytes failed: {:?}", e),
