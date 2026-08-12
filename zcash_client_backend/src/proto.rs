@@ -30,8 +30,9 @@ use crate::{
 #[cfg(feature = "transparent-inputs")]
 use zcash_primitives::transaction::components::OutPoint;
 
-#[cfg(feature = "orchard")]
-use orchard::tree::MerkleHashOrchard;
+// Only `TreeState::orchard_tree` used this, and that is commented out below:
+//#[cfg(feature = "orchard")]
+//use orchard::tree::MerkleHashOrchard;
 
 #[rustfmt::skip]
 #[allow(unknown_lints)]
@@ -278,28 +279,31 @@ impl service::TreeState {
         }
     }
 
-    /// Deserializes and returns the Sapling note commitment tree field of the tree state.
-    #[cfg(feature = "orchard")]
-    pub fn orchard_tree(
-        &self,
-    ) -> io::Result<CommitmentTree<MerkleHashOrchard, { orchard::NOTE_COMMITMENT_TREE_DEPTH as u8 }>>
-    {
-        if self.orchard_tree.is_empty() {
-            Ok(CommitmentTree::empty())
-        } else {
-            let orchard_tree_bytes = hex::decode(&self.orchard_tree).map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("Hex decoding of Orchard tree bytes failed: {:?}", e),
-                )
-            })?;
-            read_commitment_tree::<
-                MerkleHashOrchard,
-                _,
-                { orchard::NOTE_COMMITMENT_TREE_DEPTH as u8 },
-            >(&orchard_tree_bytes[..])
-        }
-    }
+    // Commented out along with `orchardTree` in proto/service.proto: the tree
+    // state this fork's lightwalletd serves carries no Orchard commitment tree,
+    // so there is nothing here to deserialize.
+    //    /// Deserializes and returns the Sapling note commitment tree field of the tree state.
+    //    #[cfg(feature = "orchard")]
+    //    pub fn orchard_tree(
+    //        &self,
+    //    ) -> io::Result<CommitmentTree<MerkleHashOrchard, { orchard::NOTE_COMMITMENT_TREE_DEPTH as u8 }>>
+    //    {
+    //        if self.orchard_tree.is_empty() {
+    //            Ok(CommitmentTree::empty())
+    //        } else {
+    //            let orchard_tree_bytes = hex::decode(&self.orchard_tree).map_err(|e| {
+    //                io::Error::new(
+    //                    io::ErrorKind::InvalidData,
+    //                    format!("Hex decoding of Orchard tree bytes failed: {:?}", e),
+    //                )
+    //            })?;
+    //            read_commitment_tree::<
+    //                MerkleHashOrchard,
+    //                _,
+    //                { orchard::NOTE_COMMITMENT_TREE_DEPTH as u8 },
+    //            >(&orchard_tree_bytes[..])
+    //        }
+    //    }
 
     /// Parses this tree state into a [`ChainState`] for use with [`scan_cached_blocks`].
     ///
@@ -322,8 +326,12 @@ impl service::TreeState {
                 io::Error::new(io::ErrorKind::InvalidData, "Invalid block hash length.")
             })?,
             self.sapling_tree()?.to_frontier(),
-            #[cfg(feature = "orchard")]
-            self.orchard_tree()?.to_frontier(),
+            // Commented out with `TreeState::orchard_tree` above. `ChainState`
+            // still takes an Orchard frontier under the `orchard` feature, so
+            // enabling it against this fork is a compile error rather than a
+            // wallet that scans Orchard against an empty tree:
+            //            #[cfg(feature = "orchard")]
+            //            self.orchard_tree()?.to_frontier(),
         ))
     }
 }
